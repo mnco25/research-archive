@@ -7,7 +7,7 @@ import Citation from '@/components/Citation';
 import PaperCard from '@/components/PaperCard';
 import { PaperDetailSkeleton } from '@/components/Loading';
 import type { PaperDetail, Paper } from '@/lib/types';
-import { formatDate, formatNumber, formatAuthors, getDoiUrl } from '@/lib/utils';
+import { formatDate, formatNumber, getDoiUrl } from '@/lib/utils';
 
 export default function PaperPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -98,7 +98,7 @@ export default function PaperPage({ params }: { params: Promise<{ id: string }> 
           {error || 'Paper not found'}
         </h1>
         <p className="text-[var(--color-text-secondary)] mb-4">
-          The paper you're looking for doesn't exist or couldn't be loaded.
+          The paper you&apos;re looking for doesn&apos;t exist or couldn&apos;t be loaded.
         </p>
         <Link href="/search" className="btn btn-primary">
           Back to Search

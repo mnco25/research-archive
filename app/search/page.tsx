@@ -7,7 +7,7 @@ import PaperCard from '@/components/PaperCard';
 import FilterSidebar, { FilterState } from '@/components/FilterSidebar';
 import Pagination from '@/components/Pagination';
 import { SearchResultsSkeleton } from '@/components/Loading';
-import type { Paper, SearchResult, PaperSource } from '@/lib/types';
+import type { Paper, SearchResult } from '@/lib/types';
 
 function SearchContent() {
   const searchParams = useSearchParams();

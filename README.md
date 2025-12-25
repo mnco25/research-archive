@@ -4,6 +4,8 @@
 
 ResearchArchive is a unified, free academic paper search engine that aggregates arXiv, PubMed, CrossRef, and OpenAlex with semantic search, paper summarization, and discovery features. Think "Google for research papers with researcher-first UX."
 
+![ResearchArchive Homepage](https://github.com/user-attachments/assets/e926fbf7-6625-4ac2-aa0d-9c6f5c6a1b33)
+
 ## Features
 
 - **Unified Search**: Search 250M+ papers across multiple databases simultaneously
@@ -11,13 +13,28 @@ ResearchArchive is a unified, free academic paper search engine that aggregates 
 - **Citation Formatting**: Generate BibTeX, APA, and MLA citations with one click
 - **Save Papers**: Build your reading list using browser localStorage (no account needed)
 - **Advanced Filters**: Filter by source, access type, date range, citations, and discipline
+- **Dark Mode**: Beautiful dark theme for comfortable reading in any lighting
 - **Responsive Design**: Works beautifully on desktop, tablet, and mobile
+- **Keyboard Navigation**: Full keyboard support for power users
+- **Privacy First**: No tracking, no accounts required
+
+### Dark Mode Support
+
+Toggle between light and dark themes with a single click. Your preference is saved automatically.
+
+![Dark Mode](https://github.com/user-attachments/assets/886ca74b-8ae1-454e-90ca-a0fa518bccaa)
+
+### Mobile-Friendly Design
+
+Fully responsive design optimized for mobile devices with touch-friendly controls.
+
+![Mobile View](https://github.com/user-attachments/assets/1f9f9517-e3c7-4ee8-9cc0-3f2fb5ddaf81)
 
 ## Tech Stack
 
-- **Framework**: Next.js 14+ (App Router)
+- **Framework**: Next.js 16+ (App Router)
 - **Language**: TypeScript (strict mode)
-- **Styling**: Tailwind CSS
+- **Styling**: Tailwind CSS with CSS custom properties
 - **Validation**: Zod schemas
 - **HTTP Client**: Axios
 - **XML Parsing**: fast-xml-parser (for arXiv)
@@ -147,10 +164,10 @@ Results are cached in memory to minimize API calls.
 
 ## Roadmap
 
+- [x] Dark mode
 - [ ] Full-text search integration
 - [ ] Author profiles and pages
 - [ ] Reading lists with tags
-- [ ] Dark mode
 - [ ] AI-powered paper summaries
 - [ ] Export to reference managers (Zotero, Mendeley)
 - [ ] Browser extension

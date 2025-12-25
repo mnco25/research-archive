@@ -6,25 +6,31 @@ import PaperCard from '@/components/PaperCard';
 import type { Paper, SavedPaper } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
+function getSavedPapersSnapshot(): SavedPaper[] {
+  if (typeof window === 'undefined') return [];
+  const saved = localStorage.getItem('savedPapers');
+  if (!saved) return [];
+  try {
+    const papers = JSON.parse(saved);
+    papers.sort((a: SavedPaper, b: SavedPaper) =>
+      new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
+    );
+    return papers;
+  } catch {
+    return [];
+  }
+}
+
 export default function SavedPage() {
   const [savedPapers, setSavedPapers] = useState<SavedPaper[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
+  // Load saved papers on client side only - intentional initialization from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('savedPapers');
-    if (saved) {
-      try {
-        const papers = JSON.parse(saved);
-        // Sort by saved date, newest first
-        papers.sort((a: SavedPaper, b: SavedPaper) =>
-          new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
-        );
-        setSavedPapers(papers);
-      } catch {
-        setSavedPapers([]);
-      }
-    }
-    setIsLoading(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSavedPapers(getSavedPapersSnapshot());
   }, []);
 
   const handleRemove = (paper: Paper) => {
@@ -65,7 +71,7 @@ export default function SavedPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (isLoading) {
+  if (!mounted) {
     return (
       <div className="container py-8">
         <div className="animate-pulse space-y-4">
