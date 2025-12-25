@@ -15,7 +15,7 @@ export default function NotFound() {
         <circle cx="12" cy="12" r="10" />
         <path d="M16 16s-1.5-2-4-2-4 2-4 2" />
         <line x1="9" y1="9" x2="9.01" y2="9" />
-        <line x1="15" y1="9" x2="15.01" y2="9" />
+        <line x1="15" y1="9" x2="15.01" y2="15.01" />
       </svg>
 
       <h1 className="text-4xl font-bold text-[var(--color-text-primary)] mb-4">
@@ -27,8 +27,8 @@ export default function NotFound() {
       </h2>
 
       <p className="text-[var(--color-text-tertiary)] mb-8 max-w-md mx-auto">
-        The page you're looking for doesn't exist or has been moved.
-        Let's get you back on track.
+        The page you&apos;re looking for doesn&apos;t exist or has been moved.
+        Let&apos;s get you back on track.
       </p>
 
       <div className="flex flex-wrap justify-center gap-4">
