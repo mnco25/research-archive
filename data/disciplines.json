@@ -1,0 +1,74 @@
+[
+  {
+    "id": "cs",
+    "name": "Computer Science",
+    "icon": "💻",
+    "subcategories": ["Machine Learning", "Artificial Intelligence", "Computer Vision", "Natural Language Processing", "Algorithms", "Databases", "Security", "Networking"]
+  },
+  {
+    "id": "physics",
+    "name": "Physics",
+    "icon": "⚛️",
+    "subcategories": ["Quantum Physics", "Condensed Matter", "High Energy Physics", "Astrophysics", "Optics", "Nuclear Physics"]
+  },
+  {
+    "id": "math",
+    "name": "Mathematics",
+    "icon": "📐",
+    "subcategories": ["Pure Mathematics", "Applied Mathematics", "Statistics", "Probability", "Algebra", "Geometry", "Number Theory"]
+  },
+  {
+    "id": "biology",
+    "name": "Biology",
+    "icon": "🧬",
+    "subcategories": ["Molecular Biology", "Genetics", "Cell Biology", "Neuroscience", "Ecology", "Evolutionary Biology", "Microbiology"]
+  },
+  {
+    "id": "medicine",
+    "name": "Medicine",
+    "icon": "🏥",
+    "subcategories": ["Clinical Medicine", "Oncology", "Cardiology", "Neurology", "Immunology", "Pharmacology", "Public Health"]
+  },
+  {
+    "id": "chemistry",
+    "name": "Chemistry",
+    "icon": "🧪",
+    "subcategories": ["Organic Chemistry", "Inorganic Chemistry", "Physical Chemistry", "Biochemistry", "Materials Science"]
+  },
+  {
+    "id": "engineering",
+    "name": "Engineering",
+    "icon": "⚙️",
+    "subcategories": ["Electrical Engineering", "Mechanical Engineering", "Civil Engineering", "Chemical Engineering", "Biomedical Engineering"]
+  },
+  {
+    "id": "economics",
+    "name": "Economics",
+    "icon": "📊",
+    "subcategories": ["Microeconomics", "Macroeconomics", "Econometrics", "Finance", "Behavioral Economics"]
+  },
+  {
+    "id": "psychology",
+    "name": "Psychology",
+    "icon": "🧠",
+    "subcategories": ["Cognitive Psychology", "Clinical Psychology", "Social Psychology", "Developmental Psychology", "Neuropsychology"]
+  },
+  {
+    "id": "earth",
+    "name": "Earth Sciences",
+    "icon": "🌍",
+    "subcategories": ["Geology", "Climate Science", "Oceanography", "Atmospheric Science", "Environmental Science"]
+  },
+  {
+    "id": "astronomy",
+    "name": "Astronomy",
+    "icon": "🔭",
+    "subcategories": ["Planetary Science", "Stellar Astronomy", "Cosmology", "Astrobiology"]
+  },
+  {
+    "id": "social",
+    "name": "Social Sciences",
+    "icon": "👥",
+    "subcategories": ["Sociology", "Political Science", "Anthropology", "Education", "Law"]
+  }
+]
