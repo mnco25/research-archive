@@ -30,6 +30,8 @@ export default function SearchBar({
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Fetch suggestions with debounce
+  // The debounce function creates a stable memoized callback, so we intentionally
+  // exclude it from dependencies to prevent re-creating on every render
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchSuggestionsDebounced = useCallback(
     debounce(async (searchQuery: string) => {
