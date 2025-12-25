@@ -1,0 +1,67 @@
+{
+  "sources": {
+    "arxiv": {
+      "name": "arXiv",
+      "description": "Open-access archive for preprints in physics, mathematics, computer science, and more",
+      "baseUrl": "https://export.arxiv.org/api/query",
+      "paperCount": "2.5M+",
+      "rateLimit": "1 request per 3 seconds",
+      "coverage": ["Physics", "Mathematics", "Computer Science", "Quantitative Biology", "Quantitative Finance", "Statistics", "Electrical Engineering"],
+      "color": "#b31b1b",
+      "features": ["Open Access", "Preprints", "PDF Available"]
+    },
+    "pubmed": {
+      "name": "PubMed",
+      "description": "Biomedical literature from MEDLINE, life science journals, and online books",
+      "baseUrl": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils",
+      "paperCount": "35M+",
+      "rateLimit": "10 requests per second",
+      "coverage": ["Medicine", "Biology", "Biochemistry", "Health Sciences", "Nursing", "Dentistry", "Veterinary Medicine"],
+      "color": "#326898",
+      "features": ["Peer Reviewed", "Medical Focus", "MeSH Terms"]
+    },
+    "crossref": {
+      "name": "CrossRef",
+      "description": "Scholarly metadata for publications across all disciplines with DOI registration",
+      "baseUrl": "https://api.crossref.org/v1/works",
+      "paperCount": "140M+",
+      "rateLimit": "50 requests per second",
+      "coverage": ["All Disciplines"],
+      "color": "#f36722",
+      "features": ["DOI Registry", "Citation Data", "Comprehensive Metadata"]
+    },
+    "openalex": {
+      "name": "OpenAlex",
+      "description": "Open catalog of scholarly papers, authors, institutions, and concepts",
+      "baseUrl": "https://api.openalex.org/works",
+      "paperCount": "250M+",
+      "rateLimit": "Unlimited (fair use)",
+      "coverage": ["All Disciplines"],
+      "color": "#a51716",
+      "features": ["Completely Free", "Author Profiles", "Citation Networks", "Concept Tagging"]
+    }
+  },
+  "defaults": {
+    "resultsPerPage": 20,
+    "maxResultsPerSource": 100,
+    "cacheTimeMs": 3600000,
+    "timeoutMs": 30000
+  },
+  "citationFormats": [
+    {
+      "id": "bibtex",
+      "name": "BibTeX",
+      "description": "LaTeX bibliography format"
+    },
+    {
+      "id": "apa",
+      "name": "APA 7th",
+      "description": "American Psychological Association, 7th edition"
+    },
+    {
+      "id": "mla",
+      "name": "MLA 9th",
+      "description": "Modern Language Association, 9th edition"
+    }
+  ]
+}
