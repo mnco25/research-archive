@@ -17,7 +17,7 @@ export default function SearchBar({
   initialQuery = '',
   large = false,
   onSearch,
-  placeholder = 'Search papers on machine learning, neuroscience, quantum physics...',
+  placeholder = 'Search 250M+ papers...',
   autoFocus = false,
 }: SearchBarProps) {
   const [query, setQuery] = useState(initialQuery);
@@ -25,13 +25,11 @@ export default function SearchBar({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isFocused, setIsFocused] = useState(false);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Fetch suggestions with debounce
-  // The debounce function creates a stable memoized callback, so we intentionally
-  // exclude it from dependencies to prevent re-creating on every render
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchSuggestionsDebounced = useCallback(
     debounce(async (searchQuery: string) => {
@@ -56,7 +54,6 @@ export default function SearchBar({
     []
   );
 
-  // Handle input change
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setQuery(value);
@@ -65,7 +62,6 @@ export default function SearchBar({
     setShowSuggestions(true);
   };
 
-  // Handle form submit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
@@ -78,13 +74,11 @@ export default function SearchBar({
     }
   };
 
-  // Handle suggestion click
   const handleSuggestionClick = (paper: Paper) => {
     setShowSuggestions(false);
     router.push(`/paper/${encodeURIComponent(paper.id)}`);
   };
 
-  // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!showSuggestions || suggestions.length === 0) return;
 
@@ -103,11 +97,11 @@ export default function SearchBar({
     }
   };
 
-  // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
+        setIsFocused(false);
       }
     };
 
@@ -115,24 +109,29 @@ export default function SearchBar({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Auto focus
   useEffect(() => {
     if (autoFocus && inputRef.current) {
       inputRef.current.focus();
     }
   }, [autoFocus]);
 
-  const isExpanded = showSuggestions && (suggestions.length > 0 || isLoading);
-
   return (
     <div ref={wrapperRef} className="relative w-full">
-      <form onSubmit={handleSubmit}>
-        <div className="relative group">
+      <form onSubmit={handleSubmit} className="relative z-20">
+        <div
+          className={`
+            relative group flex items-center bg-[var(--bg-surface)] 
+            rounded-2xl transition-all duration-300 ease-[var(--ease-spring)]
+            ${isFocused || query ? 'shadow-2xl translate-y-[-2px]' : 'shadow-lg'}
+            ${large ? 'p-2' : 'p-1.5'}
+            border border-[var(--border-subtle)]
+          `}
+        >
           {/* Search Icon */}
-          <div className={`absolute left-4 ${large ? 'top-1/2 -translate-y-1/2' : 'top-1/2 -translate-y-1/2'} text-[var(--color-text-tertiary)] transition-colors group-focus-within:text-[var(--color-accent-primary)]`}>
+          <div className="pl-4 text-[var(--text-tertiary)] group-focus-within:text-[var(--brand-primary)] transition-colors">
             <svg
-              width={large ? '22' : '20'}
-              height={large ? '22' : '20'}
+              width={large ? '24' : '20'}
+              height={large ? '24' : '20'}
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -150,116 +149,95 @@ export default function SearchBar({
             type="text"
             value={query}
             onChange={handleChange}
-            onFocus={() => query.length >= 2 && setShowSuggestions(true)}
+            onFocus={() => {
+              setIsFocused(true);
+              if (query.length >= 2) setShowSuggestions(true);
+            }}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             className={`
-              w-full bg-[var(--color-bg-primary)] border-2 border-[var(--color-border-light)] 
-              text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)]
-              focus:border-[var(--color-accent-primary)] focus:ring-4 focus:ring-[var(--color-accent-light)]
-              transition-all duration-200 outline-none
-              ${large 
-                ? 'pl-14 pr-32 py-5 text-lg rounded-2xl shadow-lg hover:shadow-xl' 
-                : 'pl-12 pr-24 py-3 text-base rounded-xl'
-              }
+              flex-1 bg-transparent border-none outline-none
+              text-[var(--text-primary)] placeholder-[var(--text-quaternary)]
+              ${large ? 'h-14 text-lg px-4' : 'h-10 text-base px-3'}
             `}
             aria-label="Search papers"
-            aria-autocomplete="list"
-            aria-controls={isExpanded ? 'search-suggestions' : undefined}
-            aria-activedescendant={selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined}
           />
 
           <button
             type="submit"
             className={`
-              absolute right-2 top-1/2 -translate-y-1/2 
-              bg-gradient-to-r from-[#4f46e5] to-[#7c3aed] text-white font-medium
+              flex-shrink-0 bg-[var(--text-primary)] text-[var(--bg-page)] font-medium
               hover:opacity-90 active:scale-95
-              transition-all duration-200 shadow-md hover:shadow-lg
-              ${large ? 'px-6 py-3 rounded-xl text-base' : 'px-4 py-2 rounded-lg text-sm'}
+              transition-all duration-200
+              ${large ? 'px-6 h-14 rounded-xl text-base' : 'px-4 h-10 rounded-lg text-sm'}
             `}
-            aria-label="Search"
           >
-            <span className="hidden sm:inline">Search</span>
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="sm:hidden"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
+            Search
           </button>
         </div>
       </form>
 
       {/* Suggestions dropdown */}
       {showSuggestions && (suggestions.length > 0 || isLoading) && (
-        <div 
-          id="search-suggestions"
-          role="listbox"
-          className="absolute top-full left-0 right-0 mt-2 bg-[var(--color-bg-primary)] border border-[var(--color-border-light)] rounded-xl shadow-xl z-50 overflow-hidden animate-scale-in"
+        <div
+          className="absolute top-full left-0 right-0 mt-4 bg-[var(--bg-surface)]/80 backdrop-blur-xl border border-[var(--border-subtle)] rounded-2xl shadow-2xl z-10 overflow-hidden animate-enter origin-top"
         >
           {isLoading ? (
-            <div className="p-4 text-center text-[var(--color-text-tertiary)]">
-              <div className="inline-flex items-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                </svg>
-                Searching...
-              </div>
+            <div className="p-8 flex flex-col items-center justify-center text-[var(--text-tertiary)] gap-3">
+              <div className="w-6 h-6 border-2 border-[var(--brand-primary)] border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm font-medium">Scanning 250M+ papers...</span>
             </div>
           ) : (
-            <ul>
-              {suggestions.map((paper, idx) => (
-                <li
-                  key={paper.id}
-                  id={`suggestion-${idx}`}
-                  role="option"
-                  aria-selected={idx === selectedIndex}
-                  className={`
-                    px-4 py-3 cursor-pointer border-b border-[var(--color-border-light)] last:border-b-0
-                    transition-colors duration-150
-                    ${idx === selectedIndex 
-                      ? 'bg-[var(--color-accent-light)]' 
-                      : 'hover:bg-[var(--color-bg-tertiary)]'
-                    }
-                  `}
-                  onClick={() => handleSuggestionClick(paper)}
-                  onMouseEnter={() => setSelectedIndex(idx)}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center text-[var(--color-text-tertiary)]">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-[var(--color-text-primary)] line-clamp-1">
-                        {paper.title}
+            <div className="py-2">
+              <div className="px-4 py-2 text-xs font-semibold text-[var(--text-quaternary)] uppercase tracking-wider">
+                Suggested Papers
+              </div>
+              <ul>
+                {suggestions.map((paper, idx) => (
+                  <li
+                    key={paper.id}
+                    className={`
+                      px-4 py-3 cursor-pointer
+                      transition-colors duration-200 border-l-2
+                      ${idx === selectedIndex
+                        ? 'bg-[var(--bg-surface-active)] border-[var(--brand-primary)]'
+                        : 'border-transparent hover:bg-[var(--bg-surface-hover)]'
+                      }
+                    `}
+                    onClick={() => handleSuggestionClick(paper)}
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 mt-1">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold
+                          ${paper.source === 'arxiv' ? 'bg-red-100 text-red-600' :
+                            paper.source === 'pubmed' ? 'bg-blue-100 text-blue-600' :
+                              'bg-violet-100 text-violet-600'}
+                        `}>
+                          {paper.source === 'arxiv' ? 'Ax' : paper.source === 'pubmed' ? 'Pm' : 'Ra'}
+                        </div>
                       </div>
-                      <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5 flex items-center gap-2">
-                        <span className="truncate">
-                          {paper.authors.slice(0, 2).map(a => a.name).join(', ')}
-                          {paper.authors.length > 2 && ' et al.'}
-                        </span>
-                        <span className="flex-shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium uppercase bg-[var(--color-bg-tertiary)]">
-                          {paper.source}
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-[var(--text-primary)] line-clamp-1">
+                          {paper.title}
+                        </div>
+                        <div className="text-xs text-[var(--text-tertiary)] mt-1 flex items-center gap-2">
+                          <span className="truncate max-w-[200px]">
+                            {paper.authors.slice(0, 2).map(a => a.name).join(', ')}
+                          </span>
+                          <span>•</span>
+                          <span>{new Date(paper.date).getFullYear()}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+              <div className="px-4 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-hover)]/30 text-xs text-[var(--text-quaternary)] flex justify-between">
+                <span>Press ↵ to select</span>
+                <span>ESC to close</span>
+              </div>
+            </div>
           )}
         </div>
       )}

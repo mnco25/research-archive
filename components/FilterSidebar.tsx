@@ -82,20 +82,20 @@ export default function FilterSidebar({
     <aside className="w-full lg:w-72 shrink-0">
       {/* Mobile toggle */}
       <button
-        className="lg:hidden w-full flex items-center justify-between px-4 py-3 bg-[var(--color-bg-primary)] border border-[var(--color-border-light)] rounded-xl mb-4 transition-all hover:border-[var(--color-accent-primary)]"
+        className="lg:hidden w-full flex items-center justify-between px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl mb-4 transition-all hover:border-[var(--brand-primary)]"
         onClick={() => setIsExpanded(!isExpanded)}
         aria-expanded={isExpanded}
         aria-controls="filter-panel"
       >
         <span className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[var(--color-bg-tertiary)] flex items-center justify-center text-[var(--color-text-secondary)]">
+          <div className="w-10 h-10 rounded-lg bg-[var(--bg-page)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)]">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
             </svg>
           </div>
           <div className="text-left">
-            <div className="font-medium text-[var(--color-text-primary)]">Filters</div>
-            <div className="text-xs text-[var(--color-text-tertiary)]">
+            <div className="font-medium text-[var(--text-primary)]">Filters</div>
+            <div className="text-xs text-[var(--text-tertiary)]">
               {activeFilterCount > 0 ? `${activeFilterCount} active` : 'None active'}
             </div>
           </div>
@@ -107,24 +107,24 @@ export default function FilterSidebar({
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
-          className={`text-[var(--color-text-tertiary)] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+          className={`text-[var(--text-tertiary)] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
 
-      <div 
+      <div
         id="filter-panel"
         className={`
-          bg-[var(--color-bg-primary)] border border-[var(--color-border-light)] rounded-xl overflow-hidden
+          bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl overflow-hidden
           lg:block transition-all duration-300 ease-in-out
-          ${isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 lg:max-h-none lg:opacity-100'}
+          ${isExpanded ? 'max-h-[2000px] opacit-100' : 'max-h-0 opacity-0 lg:max-h-none lg:opacity-100'}
         `}
       >
-        <div className="p-5 space-y-6">
+        <div className="p-5 space-y-8">
           {/* Sort */}
           <div>
-            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
               Sort By
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -137,10 +137,10 @@ export default function FilterSidebar({
                   key={option.value}
                   onClick={() => updateFilters({ sort: option.value as FilterState['sort'] })}
                   className={`
-                    px-3 py-2 text-xs font-medium rounded-lg transition-all
-                    ${filters.sort === option.value 
-                      ? 'bg-[var(--color-accent-primary)] text-white' 
-                      : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-light)] hover:text-[var(--color-accent-primary)]'
+                    px-2 py-2 text-xs font-medium rounded-lg transition-all border
+                    ${filters.sort === option.value
+                      ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]'
+                      : 'bg-[var(--bg-page)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--brand-primary)] hover:text-[var(--text-primary)]'
                     }
                   `}
                 >
@@ -152,26 +152,32 @@ export default function FilterSidebar({
 
           {/* Sources */}
           <div>
-            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
               Sources
             </label>
             <div className="space-y-2">
               {(['arxiv', 'pubmed', 'crossref', 'openalex'] as PaperSource[]).map((source) => (
-                <label 
-                  key={source} 
-                  className="flex items-center gap-3 p-2 -mx-2 rounded-lg cursor-pointer hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                <label
+                  key={source}
+                  className="group flex items-center gap-3 p-2 -mx-2 rounded-lg cursor-pointer hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
-                  <input
-                    type="checkbox"
-                    checked={filters.sources.includes(source)}
-                    onChange={() => toggleSource(source)}
-                    className="w-4 h-4"
-                  />
-                  <span 
+                  <div className="relative flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.sources.includes(source)}
+                      onChange={() => toggleSource(source)}
+                      className="peer w-4 h-4 appearance-none rounded border border-[var(--border-default)] checked:bg-[var(--brand-primary)] checked:border-[var(--brand-primary)] transition-all cursor-pointer"
+                    />
+                    <svg className="absolute w-3 h-3 text-white pointer-events-none opacity-0 peer-checked:opacity-100 left-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+
+                  <span
                     className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ backgroundColor: sourceInfo[source].color }}
                   />
-                  <span className="text-sm text-[var(--color-text-primary)]">
+                  <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors font-medium">
                     {sourceInfo[source].label}
                   </span>
                 </label>
@@ -181,17 +187,17 @@ export default function FilterSidebar({
 
           {/* Access Type */}
           <div>
-            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
               Access
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => updateFilters({ accessType: 'any' })}
                 className={`
-                  px-3 py-2 text-xs font-medium rounded-lg transition-all
-                  ${filters.accessType === 'any' 
-                    ? 'bg-[var(--color-accent-primary)] text-white' 
-                    : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-light)] hover:text-[var(--color-accent-primary)]'
+                  px-3 py-2 text-xs font-medium rounded-lg transition-all border
+                  ${filters.accessType === 'any'
+                    ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] border-[var(--brand-primary)]'
+                    : 'bg-[var(--bg-page)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--brand-primary)]'
                   }
                 `}
               >
@@ -200,10 +206,10 @@ export default function FilterSidebar({
               <button
                 onClick={() => updateFilters({ accessType: 'open' })}
                 className={`
-                  px-3 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1
-                  ${filters.accessType === 'open' 
-                    ? 'bg-[var(--color-success)] text-white' 
-                    : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-green-50 hover:text-green-600'
+                  px-3 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1 border
+                  ${filters.accessType === 'open'
+                    ? 'bg-green-500/10 text-green-600 border-green-500'
+                    : 'bg-[var(--bg-page)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-green-500 hover:text-green-600'
                   }
                 `}
               >
@@ -218,7 +224,7 @@ export default function FilterSidebar({
 
           {/* Date Range */}
           <div>
-            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
               Date Range
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -232,10 +238,10 @@ export default function FilterSidebar({
                   key={option.value}
                   onClick={() => updateFilters({ dateRange: option.value as FilterState['dateRange'] })}
                   className={`
-                    px-3 py-2 text-xs font-medium rounded-lg transition-all
-                    ${filters.dateRange === option.value 
-                      ? 'bg-[var(--color-accent-primary)] text-white' 
-                      : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-light)] hover:text-[var(--color-accent-primary)]'
+                    px-3 py-2 text-xs font-medium rounded-lg transition-all border
+                    ${filters.dateRange === option.value
+                      ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]'
+                      : 'bg-[var(--bg-page)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--brand-primary)] hover:text-[var(--text-primary)]'
                     }
                   `}
                 >
@@ -247,7 +253,7 @@ export default function FilterSidebar({
 
           {/* Minimum Citations */}
           <div>
-            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
               Minimum Citations
             </label>
             <input
@@ -255,40 +261,40 @@ export default function FilterSidebar({
               min="0"
               value={filters.citationMin}
               onChange={(e) => updateFilters({ citationMin: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 text-sm bg-[var(--color-bg-primary)] border border-[var(--color-border-light)] rounded-lg focus:border-[var(--color-accent-primary)] focus:ring-2 focus:ring-[var(--color-accent-light)] outline-none transition-all"
+              className="w-full px-3 py-2 text-sm bg-[var(--bg-page)] border border-[var(--border-subtle)] rounded-lg focus:border-[var(--brand-primary)] focus:ring-1 focus:ring-[var(--brand-primary)] outline-none transition-all text-[var(--text-primary)]"
               placeholder="0"
             />
           </div>
 
           {/* Discipline */}
           <div>
-            <label className="block text-sm font-semibold text-[var(--color-text-primary)] mb-3">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
               Discipline
             </label>
-            <select
-              value={filters.discipline}
-              onChange={(e) => updateFilters({ discipline: e.target.value })}
-              className="w-full px-3 py-2 text-sm bg-[var(--color-bg-primary)] border border-[var(--color-border-light)] rounded-lg focus:border-[var(--color-accent-primary)] focus:ring-2 focus:ring-[var(--color-accent-light)] outline-none transition-all cursor-pointer appearance-none"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23707070' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 0.75rem center',
-              }}
-            >
-              <option value="">All disciplines</option>
-              {disciplines.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.icon} {d.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={filters.discipline}
+                onChange={(e) => updateFilters({ discipline: e.target.value })}
+                className="w-full px-3 py-2 text-sm bg-[var(--bg-page)] border border-[var(--border-subtle)] rounded-lg focus:border-[var(--brand-primary)] focus:ring-1 focus:ring-[var(--brand-primary)] outline-none transition-all cursor-pointer appearance-none text-[var(--text-primary)]"
+              >
+                <option value="">All disciplines</option>
+                {disciplines.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-tertiary)]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
+              </div>
+            </div>
           </div>
 
           {/* Clear filters */}
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="w-full px-4 py-2.5 text-sm font-medium text-[var(--color-text-secondary)] bg-[var(--color-bg-tertiary)] rounded-lg hover:bg-[var(--color-error)] hover:text-white transition-all flex items-center justify-center gap-2"
+              className="w-full px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-page)] border border-[var(--border-subtle)] rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center gap-2"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="6" x2="6" y2="18" />

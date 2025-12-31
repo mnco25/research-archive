@@ -89,7 +89,8 @@ function SearchContent() {
     if (q) {
       performSearch(q, currentPage, filters);
     }
-  }, [searchParams, currentPage, performSearch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, currentPage]);
 
   // Handle search
   const handleSearch = (newQuery: string) => {
@@ -147,42 +148,48 @@ function SearchContent() {
   };
 
   return (
-    <div className="container py-8">
+    <div className="container-custom py-12">
       {/* Search bar */}
-      <div className="max-w-2xl mx-auto mb-8">
-        <SearchBar initialQuery={query} onSearch={handleSearch} />
+      <div className="max-w-3xl mx-auto mb-12">
+        <SearchBar initialQuery={query} onSearch={handleSearch} large />
       </div>
 
       {/* Results section */}
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-8 lg:gap-12">
         {/* Filters */}
-        <FilterSidebar onFilterChange={handleFilterChange} initialFilters={filters} />
+        <aside className="lg:w-64 flex-shrink-0">
+          <FilterSidebar onFilterChange={handleFilterChange} initialFilters={filters} />
+        </aside>
 
         {/* Results */}
-        <div className="flex-grow">
+        <div className="flex-grow min-w-0">
           {/* Results header */}
           {results && !isLoading && (
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-[var(--color-text-secondary)]">
-                Found <strong>{results.total.toLocaleString()}</strong> papers
-                {results.searchTimeMs && ` in ${results.searchTimeMs}ms`}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-[var(--border-subtle)]">
+              <p className="text-sm text-[var(--text-secondary)]">
+                Found <strong className="text-[var(--text-primary)]">{results.total.toLocaleString()}</strong> results
+                {results.searchTimeMs && <span className="text-[var(--text-tertiary)] ml-1">({results.searchTimeMs}ms)</span>}
               </p>
             </div>
           )}
 
           {/* Error state */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-              <p className="text-red-700">{error}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-8">
+              <p className="text-red-700 dark:text-red-400 font-medium">{error}</p>
             </div>
           )}
 
           {/* Loading state */}
-          {isLoading && <SearchResultsSkeleton count={5} />}
+          {isLoading && (
+            <div className="space-y-6">
+              <SearchResultsSkeleton count={5} />
+            </div>
+          )}
 
           {/* Results list */}
           {!isLoading && results && results.papers.length > 0 && (
-            <div className="space-y-4 stagger-children">
+            <div className="space-y-6 stagger-children animate-enter">
               {results.papers.map((paper) => (
                 <PaperCard
                   key={paper.id}
@@ -196,58 +203,46 @@ function SearchContent() {
 
           {/* Empty state */}
           {!isLoading && results && results.papers.length === 0 && (
-            <div className="text-center py-16">
-              <svg
-                width="64"
-                height="64"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--color-text-tertiary)"
-                strokeWidth="1.5"
-                className="mx-auto mb-4"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-              <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">
-                No papers found
+            <div className="text-center py-24 bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)]">
+              <div className="w-16 h-16 mx-auto mb-4 text-[var(--text-tertiary)] bg-[var(--bg-page)] rounded-full flex items-center justify-center">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
+                No results found
               </h3>
-              <p className="text-[var(--color-text-secondary)]">
-                Try adjusting your search or filters
+              <p className="text-[var(--text-secondary)] max-w-sm mx-auto">
+                We couldn&apos;t find any papers matching your search. Try different keywords or filters.
               </p>
             </div>
           )}
 
           {/* No query state */}
           {!isLoading && !results && !query && (
-            <div className="text-center py-16">
-              <svg
-                width="64"
-                height="64"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--color-text-tertiary)"
-                strokeWidth="1.5"
-                className="mx-auto mb-4"
-              >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-              <h3 className="text-lg font-medium text-[var(--color-text-primary)] mb-2">
-                Search for papers
+            <div className="text-center py-32">
+              <div className="w-20 h-20 mx-auto mb-6 text-[var(--brand-primary)] opacity-20">
+                <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-display font-semibold text-[var(--text-primary)] mb-3">
+                Begin your discovery
               </h3>
-              <p className="text-[var(--color-text-secondary)]">
-                Enter a search term above to find academic papers
+              <p className="text-[var(--text-secondary)]">
+                Search 200M+ papers across physics, computer science, medicine, and more.
               </p>
             </div>
           )}
 
           {/* Pagination */}
           {results && results.pages > 1 && (
-            <div className="mt-8">
+            <div className="mt-12 flex justify-center">
               <Pagination
                 currentPage={currentPage}
-                totalPages={Math.min(results.pages, 50)} // Limit to 50 pages
+                totalPages={Math.min(results.pages, 50)}
                 onPageChange={handlePageChange}
               />
             </div>

@@ -6,82 +6,11 @@ import SearchBar from '@/components/SearchBar';
 import PaperCard from '@/components/PaperCard';
 import { PaperCardSkeleton } from '@/components/Loading';
 import type { Paper } from '@/lib/types';
-import disciplines from '@/data/disciplines.json';
 
 const stats = [
-  { value: '250M+', label: 'Papers', color: 'from-violet-500 to-purple-500' },
-  { value: '4', label: 'Sources', color: 'from-blue-500 to-cyan-500' },
-  { value: 'Free', label: 'Forever', color: 'from-emerald-500 to-teal-500' },
-];
-
-const features = [
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8" />
-        <path d="m21 21-4.35-4.35" />
-      </svg>
-    ),
-    title: 'Unified Search',
-    description: 'Search multiple databases at once. No more switching between arXiv, PubMed, and Google Scholar.',
-  },
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-        <polyline points="14 2 14 8 20 8" />
-        <line x1="16" y1="13" x2="8" y2="13" />
-        <line x1="16" y1="17" x2="8" y2="17" />
-      </svg>
-    ),
-    title: 'Instant Citations',
-    description: 'Generate BibTeX, APA, and MLA citations with one click. Copy and paste directly into your manuscript.',
-  },
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-      </svg>
-    ),
-    title: 'Save & Organize',
-    description: 'Save papers for later. Build your reading list without creating an account.',
-  },
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-      </svg>
-    ),
-    title: 'Open Access First',
-    description: 'Filter for open access papers instantly. Find research you can actually read.',
-  },
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-      </svg>
-    ),
-    title: 'Export Anywhere',
-    description: 'Export your saved papers and citations to Zotero, Mendeley, or any reference manager.',
-  },
-  {
-    icon: (
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-      </svg>
-    ),
-    title: 'Privacy First',
-    description: 'No tracking, no accounts required. Your search history stays on your device.',
-  },
-];
-
-const sources = [
-  { name: 'arXiv', count: '2.5M+', color: '#b31b1b', description: 'Physics, Math, CS' },
-  { name: 'PubMed', count: '35M+', color: '#326898', description: 'Biomedical, Life Sciences' },
-  { name: 'CrossRef', count: '140M+', color: '#f36722', description: 'Multidisciplinary' },
-  { name: 'OpenAlex', count: '250M+', color: '#a51716', description: 'Most Comprehensive' },
+  { value: '250M+', label: 'Papers Indexed' },
+  { value: '4', label: 'Databases' },
+  { value: '0ms', label: 'Cost' },
 ];
 
 export default function Home() {
@@ -91,7 +20,7 @@ export default function Home() {
   useEffect(() => {
     async function loadFeaturedPapers() {
       try {
-        const response = await fetch('/api/search?q=machine+learning&limit=6&sort=citations');
+        const response = await fetch('/api/search?q=machine+learning&limit=4&sort=citations');
         if (response.ok) {
           const data = await response.json();
           setFeaturedPapers(data.papers || []);
@@ -108,253 +37,182 @@ export default function Home() {
 
   return (
     <div className="overflow-hidden">
-      {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center bg-gradient-to-b from-[var(--color-bg-secondary)] via-[var(--color-bg-primary)] to-[var(--color-bg-primary)]">
-        {/* Background decoration */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-violet-500/20 to-purple-500/20 rounded-full blur-3xl" />
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-indigo-500/5 to-purple-500/5 rounded-full blur-3xl" />
+      {/* Hero Section - Gradient Mesh Background */}
+      <section className="relative min-h-[92vh] flex items-center justify-center overflow-hidden">
+        {/* Animated Gradient Background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-blue-400/20 rounded-full blur-[120px] mix-blend-screen animate-float" />
+          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-400/20 rounded-full blur-[120px] mix-blend-screen animate-float delay-1000" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-500/10 rounded-full blur-[100px] mix-blend-screen" />
         </div>
 
-        <div className="container relative z-10 py-20 md:py-32">
+        <div className="container-custom relative z-10 pt-20">
           <div className="max-w-4xl mx-auto text-center">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--color-accent-light)] text-[var(--color-accent-primary)] text-sm font-medium mb-8 animate-fade-in">
+            {/* Pill Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-sm font-medium mb-8 animate-enter shadow-sm hover:scale-105 transition-transform cursor-default">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-accent-primary)] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-accent-primary)]"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              Searching 250M+ papers across 4 sources
+              <span className="text-[var(--text-secondary)]">Live indexing 250M+ papers</span>
             </div>
 
-            {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-[var(--color-text-primary)] mb-6 leading-tight tracking-tight animate-slide-in-up" style={{ fontFamily: "'Inter', sans-serif" }}>
-              Find the research
-              <br />
-              you need. <span className="gradient-text">Faster.</span>
+            {/* Main Headline */}
+            <h1 className="font-display font-semibold text-[3.5rem] md:text-[5rem] leading-[0.95] tracking-tight mb-8 animate-enter delay-100">
+              The search engine for <br />
+              <span className="text-gradient">scientific progress.</span>
             </h1>
 
-            {/* Subheadline */}
-            <p className="text-lg md:text-xl text-[var(--color-text-secondary)] mb-10 max-w-2xl mx-auto leading-relaxed animate-slide-in-up" style={{ animationDelay: '100ms' }}>
-              The free, unified search engine for academic papers. 
-              Search arXiv, PubMed, CrossRef, and OpenAlex in one place.
+            <p className="text-lg md:text-xl text-[var(--text-secondary)] mb-8 max-w-2xl mx-auto leading-relaxed">
+              Access 250M+ papers from ArXiv, PubMed, CrossRef, and OpenAlex.
+              One unified search engine. Zero paywalls blocked.
             </p>
 
-            {/* Search Bar */}
-            <div className="max-w-2xl mx-auto mb-12 animate-slide-in-up" style={{ animationDelay: '200ms' }}>
+            {/* Search Component */}
+            <div className="max-w-2xl mx-auto mb-16 animate-enter delay-300 transform transition-all hover:scale-[1.01]">
               <SearchBar large autoFocus />
             </div>
 
-            {/* Stats */}
-            <div className="flex flex-wrap justify-center gap-8 md:gap-12 animate-slide-in-up" style={{ animationDelay: '300ms' }}>
-              {stats.map((stat, index) => (
-                <div key={index} className="text-center">
-                  <div className={`text-3xl md:text-4xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
-                    {stat.value}
-                  </div>
-                  <div className="text-sm text-[var(--color-text-tertiary)] mt-1">
-                    {stat.label}
-                  </div>
+            {/* Stats Row */}
+            <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto border-t border-[var(--border-subtle)] pt-8 animate-enter delay-300">
+              {stats.map((stat, i) => (
+                <div key={i} className="text-center">
+                  <div className="font-display font-semibold text-3xl text-[var(--text-primary)] mb-1">{stat.value}</div>
+                  <div className="text-sm text-[var(--text-tertiary)] uppercase tracking-wider font-medium">{stat.label}</div>
                 </div>
               ))}
             </div>
           </div>
-
-          {/* Scroll indicator */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce hidden md:block">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 5v14M19 12l-7 7-7-7"/>
-            </svg>
-          </div>
         </div>
       </section>
 
-      {/* Data Sources Section */}
-      <section className="py-16 md:py-24 bg-[var(--color-bg-primary)]">
-        <div className="container">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)] mb-4">
-              Powered by Leading Academic Databases
-            </h2>
-            <p className="text-[var(--color-text-secondary)] max-w-2xl mx-auto">
-              Search across multiple trusted sources simultaneously for comprehensive research coverage.
+      {/* Bento Grid Features - "Linear Style" */}
+      <section className="py-32 bg-[var(--bg-page)]">
+        <div className="container-custom">
+          <div className="mb-20">
+            <h2 className="font-display text-4xl mb-4">Everything you need. <span className="text-[var(--text-tertiary)]">Nothing you don&apos;t.</span></h2>
+            <p className="text-xl text-[var(--text-secondary)] max-w-xl">
+              Built by researchers who were tired of paywalls, fragmented databases, and bad UX.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {sources.map((source, index) => (
-              <div 
-                key={source.name} 
-                className="group p-6 rounded-2xl bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] hover:border-[var(--color-accent-primary)] hover:shadow-lg transition-all duration-300"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div 
-                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
-                  style={{ backgroundColor: `${source.color}15` }}
-                >
-                  <span className="text-2xl font-bold" style={{ color: source.color }}>
-                    {source.name[0]}
-                  </span>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[400px]">
+            {/* Feature 1: Large Card */}
+            <div className="md:col-span-2 glass-card rounded-[2rem] p-10 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-2/3 h-full bg-gradient-to-l from-blue-50/50 to-transparent dark:from-blue-900/20 pointer-events-none" />
+              <div className="relative z-10 h-full flex flex-col justify-between">
+                <div>
+                  <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 mb-6">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+                  </div>
+                  <h3 className="text-3xl font-semibold mb-4">Unified Search</h3>
+                  <p className="text-[var(--text-secondary)] text-lg max-w-md">Query arXiv, PubMed, CrossRef, and OpenAlex simultaneously with smart deduplication.</p>
                 </div>
-                <h3 className="font-semibold text-[var(--color-text-primary)] mb-1">
-                  {source.name}
-                </h3>
-                <p className="text-2xl font-bold text-[var(--color-text-primary)] mb-1">
-                  {source.count}
-                </p>
-                <p className="text-sm text-[var(--color-text-tertiary)]">
-                  {source.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Disciplines Section */}
-      <section className="py-16 md:py-24 bg-[var(--color-bg-secondary)]">
-        <div className="container">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)] mb-4">
-              Explore by Discipline
-            </h2>
-            <p className="text-[var(--color-text-secondary)] max-w-2xl mx-auto">
-              Browse papers across all major academic fields and specializations.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 md:gap-4">
-            {disciplines.map((discipline, index) => (
-              <Link
-                key={discipline.id}
-                href={`/search?q=${encodeURIComponent(discipline.name)}`}
-                className="group flex flex-col items-center gap-3 p-4 md:p-6 bg-[var(--color-bg-primary)] border border-[var(--color-border-light)] rounded-xl hover:border-[var(--color-accent-primary)] hover:shadow-md transition-all duration-300 text-center"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <span className="text-2xl md:text-3xl transition-transform group-hover:scale-125 group-hover:-translate-y-1">
-                  {discipline.icon}
-                </span>
-                <span className="text-xs md:text-sm font-medium text-[var(--color-text-primary)] leading-tight">
-                  {discipline.name}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-16 md:py-24 bg-[var(--color-bg-primary)]">
-        <div className="container">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)] mb-4">
-              Built for Researchers
-            </h2>
-            <p className="text-[var(--color-text-secondary)] max-w-2xl mx-auto">
-              Everything you need to find, save, and cite academic papers efficiently.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {features.map((feature) => (
-              <div 
-                key={feature.title} 
-                className="group p-6 md:p-8 rounded-2xl bg-[var(--color-bg-secondary)] border border-[var(--color-border-light)] hover:border-[var(--color-accent-primary)] hover:shadow-lg transition-all duration-300"
-              >
-                <div className="w-12 h-12 rounded-xl bg-[var(--color-accent-light)] text-[var(--color-accent-primary)] flex items-center justify-center mb-5 transition-all group-hover:bg-[var(--color-accent-primary)] group-hover:text-white">
-                  {feature.icon}
+                {/* Visual Representation */}
+                <div className="w-full h-48 bg-[var(--bg-surface)] rounded-xl border border-[var(--border-subtle)] shadow-sm p-4 flex flex-col gap-3 opacity-90 group-hover:translate-y-[-10px] transition-transform duration-500">
+                  <div className="flex gap-2">
+                    <div className="w-20 h-2 bg-gray-200 dark:bg-gray-700 rounded-full" />
+                    <div className="w-10 h-2 bg-blue-100 dark:bg-blue-900/30 rounded-full" />
+                  </div>
+                  <div className="h-24 bg-gray-50 dark:bg-gray-800/50 rounded-lg w-full" />
                 </div>
-                <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-[var(--color-text-secondary)] leading-relaxed">
-                  {feature.description}
-                </p>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            </div>
 
-      {/* Featured Papers Section */}
-      <section className="py-16 md:py-24 bg-[var(--color-bg-secondary)]">
-        <div className="container">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-[var(--color-text-primary)] mb-2">
-                Trending Research
-              </h2>
-              <p className="text-[var(--color-text-secondary)]">
-                Highly cited papers in machine learning
+            {/* Feature 2: Tall Card */}
+            <div className="md:row-span-2 glass-card rounded-[2rem] p-10 relative overflow-hidden group">
+              <div className="relative z-10 h-full flex flex-col">
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-600 mb-6">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
+                </div>
+                <h3 className="text-3xl font-semibold mb-4">Local Library</h3>
+                <p className="text-[var(--text-secondary)] text-lg mb-8">Save papers to your browser&apos;s local storage. No login required. Privacy first.</p>
+
+                <div className="flex-1 bg-[var(--bg-surface)] rounded-xl border border-[var(--border-subtle)] overflow-hidden relative">
+                  <div className="absolute inset-x-4 top-4 bottom-0 space-y-3">
+                    {[1, 2, 3, 4, 5].map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-page)] transform translate-y-0 group-hover:translate-x-2 transition-transform duration-500" style={{ transitionDelay: `${i * 100}ms` }}>
+                        <div className="w-8 h-8 rounded bg-gray-100 dark:bg-gray-800 flex-shrink-0" />
+                        <div className="space-y-1.5 w-full">
+                          <div className="h-2 w-3/4 bg-gray-200 dark:bg-gray-700 rounded" />
+                          <div className="h-2 w-1/2 bg-gray-100 dark:bg-gray-800 rounded" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature 3: Card */}
+            <div className="group p-8 rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] relative overflow-hidden transition-all hover:border-[var(--brand-primary)]/50">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--brand-primary)]/5 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-[var(--brand-primary)]/10" />
+              <div className="w-12 h-12 rounded-xl bg-[var(--brand-primary)]/10 flex items-center justify-center text-[var(--brand-primary)] mb-6">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+              </div>
+              <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-3">One-Click Citations</h3>
+              <p className="text-[var(--text-secondary)] leading-relaxed">
+                Export BibTeX, RIS, or APA citations instantly. We&apos;ve optimized the workflow so you can focus on writing, not formatting references.
               </p>
             </div>
-            <Link
-              href="/search?q=machine+learning"
-              className="inline-flex items-center gap-2 text-sm font-medium text-[var(--color-accent-primary)] hover:underline"
-            >
-              View all
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
+
+            {/* Feature 4: Card */}
+            <div className="group p-8 rounded-3xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] relative overflow-hidden transition-all hover:border-[var(--brand-primary)]/50">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--brand-secondary)]/5 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-[var(--brand-secondary)]/10" />
+              <div className="w-12 h-12 rounded-xl bg-[var(--brand-secondary)]/10 flex items-center justify-center text-[var(--brand-secondary)] mb-6">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+              </div>
+              <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-3">Open Access First</h3>
+              <p className="text-[var(--text-secondary)] leading-relaxed">
+                We prioritize unlocking knowledge. Our engine highlights direct PDF links and open-access versions of papers whenever available.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trending Section */}
+      <section className="py-24 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+        <div className="container-custom">
+          <div className="flex justify-between items-end mb-12">
+            <div>
+              <h2 className="font-display text-4xl mb-2">Trending Research</h2>
+              <p className="text-[var(--text-secondary)]">Top cited papers in machine learning this week</p>
+            </div>
+            <Link href="/search?q=machine+learning" className="hidden md:flex items-center gap-2 text-[var(--brand-primary)] font-medium hover:gap-3 transition-all">
+              View All <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
             </Link>
           </div>
 
           {isLoading ? (
-            <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <PaperCardSkeleton key={i} />
-              ))}
+            <div className="grid md:grid-cols-2 gap-6">
+              {Array.from({ length: 4 }).map((_, i) => <PaperCardSkeleton key={i} />)}
             </div>
           ) : featuredPapers.length > 0 ? (
-            <div className="grid md:grid-cols-2 gap-4 md:gap-6 stagger-children">
+            <div className="grid md:grid-cols-2 gap-6">
               {featuredPapers.map((paper) => (
                 <PaperCard key={paper.id} paper={paper} />
               ))}
             </div>
-          ) : (
-            <div className="text-center py-16 text-[var(--color-text-tertiary)]">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-4 opacity-50">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-              <p>No featured papers available at the moment.</p>
-            </div>
-          )}
+          ) : null}
+
+          <Link href="/search?q=machine+learning" className="md:hidden mt-8 flex items-center justify-center gap-2 text-[var(--brand-primary)] font-medium w-full py-4 bg-[var(--bg-page)] rounded-xl border border-[var(--border-subtle)]">
+            View All <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+          </Link>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="relative py-20 md:py-32 overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#4f46e5] to-[#7c3aed]" />
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48Y2lyY2xlIGN4PSIzMCIgY3k9IjMwIiByPSIyIi8+PC9nPjwvZz48L3N2Zz4=')]" />
-        </div>
-        
-        <div className="container relative z-10 text-center">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-6">
-            Ready to accelerate your research?
-          </h2>
-          <p className="text-lg md:text-xl text-white/80 mb-10 max-w-2xl mx-auto">
-            Start searching now. No account needed. Completely free, forever.
-          </p>
+      {/* Call to Action */}
+      <section className="py-32 bg-[var(--bg-page)] relative overflow-hidden">
+        <div className="container-custom relative z-10 text-center">
+          <h2 className="font-display text-4xl md:text-5xl font-bold mb-8">Ready to accelerate your research?</h2>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/search"
-              className="inline-flex items-center gap-2 bg-white text-[var(--color-accent-primary)] font-semibold px-8 py-4 rounded-xl hover:bg-gray-100 transition-all hover:scale-105 shadow-lg"
-            >
+            <Link href="/search" className="px-8 py-4 bg-[var(--text-primary)] text-[var(--bg-page)] rounded-full font-semibold hover:scale-105 transition-transform shadow-xl">
               Start Searching
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
             </Link>
-            <Link
-              href="/saved"
-              className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-8 py-4 rounded-xl hover:bg-white/20 transition-all border border-white/20"
-            >
-              View Saved Papers
-            </Link>
+            <a href="https://github.com/yourusername" className="px-8 py-4 bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-full font-medium hover:bg-[var(--bg-surface-hover)] transition-colors">
+              Star on GitHub
+            </a>
           </div>
         </div>
       </section>
