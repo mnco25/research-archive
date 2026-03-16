@@ -31,52 +31,64 @@ export default function Home() {
   return (
     <>
       {/* ======== HERO ======== */}
-      <section className="relative pt-32 pb-20 md:pt-44 md:pb-28 overflow-hidden">
-        {/* Ambient gradient */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-[-20%] left-[10%] w-[600px] h-[600px] rounded-full bg-[hsl(var(--accent)/0.06)] blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[15%] w-[500px] h-[500px] rounded-full bg-[hsl(280_80%_70%/0.05)] blur-[100px]" />
+      <section className="relative flex flex-col items-center justify-center pt-32 pb-20 md:pt-48 md:pb-40 overflow-hidden min-h-[85vh]">
+        {/* Cinematic Background Layer */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden">
+          {/* Deep Fading Grid */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(150,150,150,0.06)_1px,transparent_1px),linear-gradient(to_bottom,rgba(150,150,150,0.06)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_40%,transparent_100%)]"></div>
+          
+          {/* Dynamic Glow Orbs */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-[hsl(var(--accent)/0.15)] blur-[120px] rounded-[100%] opacity-70 mix-blend-normal transform-gpu pointer-events-none"></div>
+          <div className="absolute top-[10%] right-[10%] w-[500px] h-[500px] bg-[hsl(280,80%,65%/0.12)] blur-[120px] rounded-full opacity-60 mix-blend-normal transform-gpu pointer-events-none"></div>
         </div>
 
-        <div className="container-app relative">
-          <div className="max-w-2xl mx-auto text-center">
-            {/* Status pill */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--border-primary)] bg-[var(--bg-elevated)] text-[12px] text-[var(--text-secondary)] mb-8 animate-in">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--success)] opacity-75 pulse-dot" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[var(--success)]" />
+        <div className="container-app relative z-10 w-full mt-[-2rem]">
+          <div className="max-w-[900px] mx-auto text-center flex flex-col items-center">
+            {/* Premium Status Pill */}
+            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full border border-[var(--border-primary)] shadow-sm bg-[var(--bg-elevated)]/60 backdrop-blur-xl text-[13px] font-medium text-[var(--text-secondary)] mb-10 animate-in hover:scale-105 transition-transform duration-300">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--success)] opacity-60 animate-ping" style={{ animationDuration: '3s' }} />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--success)]" />
               </span>
-              Live · 250M+ papers indexed
+              Processing 250M+ Data Points
             </div>
 
-            {/* Headline */}
-            <h1 className="text-display px-2 md:px-0 text-[clamp(2rem,8vw,4rem)] mb-5 animate-in" style={{ animationDelay: '80ms' }}>
-              Search engine for
+            {/* Headline - Cinematic scale and tracking */}
+            <h1 className="text-display px-2 md:px-0 text-[clamp(2.8rem,7vw,5.5rem)] leading-[1.05] tracking-tighter mb-6 animate-in" style={{ animationDelay: '100ms' }}>
+              <span className="text-[var(--text-primary)]">Uncover the engine of</span>
               <br />
-              <span className="bg-gradient-to-r from-[hsl(var(--accent))] to-[hsl(280,80%,65%)] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[var(--text-primary)] via-[hsl(var(--accent))] to-[hsl(280,80%,65%)] bg-clip-text text-transparent drop-shadow-sm">
                 scientific progress
               </span>
             </h1>
 
-            <p className="text-[var(--text-secondary)] text-[16px] md:text-[17px] leading-relaxed max-w-lg mx-auto mb-10 animate-in" style={{ animationDelay: '160ms' }}>
-              Search 250M+ papers from ArXiv, PubMed, CrossRef, and OpenAlex in one place. No paywalls. No accounts.
+            <p className="text-[var(--text-secondary)] text-[17px] md:text-[21px] leading-relaxed max-w-2xl mx-auto mb-14 animate-in font-medium tracking-tight" style={{ animationDelay: '200ms' }}>
+              Query arXiv, PubMed, CrossRef, and OpenAlex simultaneously. 
+              Built for researchers, completely open source, zero paywalls.
             </p>
 
-            {/* Search */}
-            <div className="max-w-xl mx-auto animate-in" style={{ animationDelay: '240ms' }}>
-              <SearchBar large autoFocus />
+            {/* Premium Glassmorphic Search Container */}
+            <div className="w-full max-w-3xl mx-auto animate-in group relative" style={{ animationDelay: '300ms' }}>
+              {/* Outer Glow Halo effect */}
+              <div className="absolute -inset-1 rounded-[1.8rem] bg-gradient-to-r from-[hsl(var(--accent)/0.2)] via-transparent to-[hsl(280,80%,65%/0.2)] opacity-0 group-hover:opacity-100 blur-xl transition-all duration-700"></div>
+              
+              <div className="relative rounded-[1.4rem] p-2 bg-[var(--bg-primary)]/40 backdrop-blur-3xl shadow-[0_8px_32px_rgba(0,0,0,0.08)] border border-[var(--border-primary)]/80 transition-shadow duration-500 group-hover:shadow-[0_8px_40px_rgba(0,0,0,0.12)]">
+                <div className="relative bg-[var(--bg-elevated)] rounded-[1rem] shadow-sm transform-gpu transition-all">
+                  <SearchBar large autoFocus placeholder="Search papers, authors, topics, keywords..." />
+                </div>
+              </div>
             </div>
 
-            {/* Stats */}
-            <div className="flex items-center justify-center gap-8 md:gap-12 mt-14 animate-in" style={{ animationDelay: '320ms' }}>
+            {/* Minimal High-Contrast Stats Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 md:gap-16 mt-24 animate-in mx-auto w-full max-w-3xl" style={{ animationDelay: '400ms' }}>
               {[
-                { value: '250M+', label: 'Papers' },
-                { value: '4', label: 'Databases' },
-                { value: 'Free', label: 'Forever' },
+                { value: '250M+', label: 'Papers Indexed' },
+                { value: '4', label: 'Global Databases' },
+                { value: '100%', label: 'Free Forever' },
               ].map(stat => (
-                <div key={stat.label} className="text-center">
-                  <div className="text-[22px] font-bold text-[var(--text-primary)] tracking-tight">{stat.value}</div>
-                  <div className="text-[12px] text-[var(--text-tertiary)] mt-0.5">{stat.label}</div>
+                <div key={stat.label} className="text-center group flex flex-col items-center">
+                  <div className="text-[32px] md:text-[42px] font-bold text-[var(--text-primary)] tracking-tighter group-hover:text-[hsl(var(--accent))] transition-colors duration-300">{stat.value}</div>
+                  <div className="text-[13px] md:text-[14px] font-semibold text-[var(--text-tertiary)] mt-1.5 tracking-widest uppercase">{stat.label}</div>
                 </div>
               ))}
             </div>
