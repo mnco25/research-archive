@@ -151,6 +151,8 @@ export default function Home() {
       </section>
       
       {/* ======== INSTITUTIONAL TRUST ======== */}
+      {/* 
+      // Temporarily hidden: this has not been partnered with anyone yet
       <section className="relative py-12 border-y border-[var(--border-secondary)] bg-[var(--bg-secondary)]/50 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-[var(--bg-secondary)] via-transparent to-[var(--bg-secondary)] z-10 pointer-events-none"></div>
         <div className="flex flex-col items-center gap-6">
@@ -174,6 +176,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      */}
 
       {/* ======== FEATURES ======== */}
       <section className="relative py-32 md:py-48 border-t border-[var(--border-secondary)] overflow-hidden">

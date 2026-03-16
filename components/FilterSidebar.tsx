@@ -106,10 +106,10 @@ export default function FilterSidebar({
                   key={opt.value}
                   onClick={() => update({ sort: opt.value })}
                   className={`
-                    px-2 py-1.5 text-[12px] font-medium rounded-[var(--radius-sm)] transition-all border
+                    px-2 py-2 text-[12px] font-bold rounded-xl transition-all border transform-gpu active:scale-95
                     ${filters.sort === opt.value
-                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
-                      : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] hover:border-[var(--text-tertiary)]'
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)] shadow-lg shadow-white/5'
+                      : 'bg-[var(--bg-tertiary)]/50 text-[var(--text-secondary)] border-[var(--border-primary)] hover:border-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)]'
                     }
                   `}
                 >
@@ -155,10 +155,10 @@ export default function FilterSidebar({
                   key={opt.value}
                   onClick={() => update({ accessType: opt.value })}
                   className={`
-                    px-2 py-1.5 text-[12px] font-medium rounded-[var(--radius-sm)] transition-all border
+                    px-2 py-2 text-[12px] font-bold rounded-xl transition-all border transform-gpu active:scale-95
                     ${filters.accessType === opt.value
                       ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
-                      : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] hover:border-[var(--text-tertiary)]'
+                      : 'bg-[var(--bg-tertiary)]/50 text-[var(--text-secondary)] border-[var(--border-primary)] hover:border-[var(--text-tertiary)]'
                     }
                   `}
                 >
