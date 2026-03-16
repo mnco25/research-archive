@@ -6,63 +6,49 @@ import PaperCard from '@/components/PaperCard';
 import type { Paper, SavedPaper } from '@/lib/types';
 import { formatDate } from '@/lib/utils';
 
-function getSavedPapersSnapshot(): SavedPaper[] {
+function getSavedPapers(): SavedPaper[] {
   if (typeof window === 'undefined') return [];
   const saved = localStorage.getItem('savedPapers');
   if (!saved) return [];
   try {
     const papers = JSON.parse(saved);
-    papers.sort((a: SavedPaper, b: SavedPaper) =>
-      new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
-    );
+    papers.sort((a: SavedPaper, b: SavedPaper) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime());
     return papers;
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 export default function SavedPage() {
-  const [savedPapers, setSavedPapers] = useState<SavedPaper[]>([]);
+  const [papers, setPapers] = useState<SavedPaper[]>([]);
   const [mounted, setMounted] = useState(false);
 
-  // Load saved papers on client side only - intentional initialization from localStorage
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSavedPapers(getSavedPapersSnapshot());
+    setPapers(getSavedPapers());
   }, []);
 
   const handleRemove = (paper: Paper) => {
-    const updated = savedPapers.filter(sp => sp.paper.id !== paper.id);
-    setSavedPapers(updated);
+    const updated = papers.filter(sp => sp.paper.id !== paper.id);
+    setPapers(updated);
     localStorage.setItem('savedPapers', JSON.stringify(updated));
   };
 
   const handleClearAll = () => {
-    if (confirm('Are you sure you want to remove all saved papers?')) {
-      setSavedPapers([]);
+    if (confirm('Remove all saved papers?')) {
+      setPapers([]);
       localStorage.removeItem('savedPapers');
     }
   };
 
   const handleExport = () => {
-    // Export as BibTeX
-    const bibtexEntries = savedPapers.map(sp => {
+    const bib = papers.map(sp => {
       const p = sp.paper;
       const authors = p.authors.map(a => a.name).join(' and ');
       const year = new Date(p.date).getFullYear();
       const key = `${p.authors[0]?.name.split(' ').pop()?.toLowerCase() || 'unknown'}${year}`;
-
-      return `@article{${key},
-  author = {${authors}},
-  title = {${p.title}},
-  year = {${year}},
-  url = {${p.url}}${p.externalIds.doi ? `,\n  doi = {${p.externalIds.doi}}` : ''}
-}`;
+      return `@article{${key},\n  author = {${authors}},\n  title = {${p.title}},\n  year = {${year}},\n  url = {${p.url}}${p.externalIds.doi ? `,\n  doi = {${p.externalIds.doi}}` : ''}\n}`;
     }).join('\n\n');
 
-    const blob = new Blob([bibtexEntries], { type: 'text/plain' });
+    const blob = new Blob([bib], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -73,10 +59,10 @@ export default function SavedPage() {
 
   if (!mounted) {
     return (
-      <div className="container py-8">
-        <div className="animate-pulse space-y-4">
+      <div className="container-app pt-24 pb-16">
+        <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-40 bg-[var(--color-bg-tertiary)] rounded-lg" />
+            <div key={i} className="h-36 skeleton rounded-[var(--radius-lg)]" />
           ))}
         </div>
       </div>
@@ -84,73 +70,48 @@ export default function SavedPage() {
   }
 
   return (
-    <div className="container py-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="container-app pt-24 pb-16">
+      <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">
-            Saved Papers
-          </h1>
-          <p className="text-[var(--color-text-secondary)]">
-            {savedPapers.length} paper{savedPapers.length !== 1 ? 's' : ''} saved
+          <h1 className="text-title text-[24px] md:text-[28px] mb-1">Library</h1>
+          <p className="text-[14px] text-[var(--text-secondary)]">
+            {papers.length} paper{papers.length !== 1 ? 's' : ''} saved
           </p>
         </div>
 
-        {savedPapers.length > 0 && (
-          <div className="flex gap-3">
-            <button onClick={handleExport} className="btn btn-secondary">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
+        {papers.length > 0 && (
+          <div className="flex gap-2">
+            <button onClick={handleExport} className="btn btn-sm btn-secondary">
               Export BibTeX
             </button>
-            <button onClick={handleClearAll} className="btn btn-ghost text-red-600 hover:bg-red-50">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-              Clear All
+            <button onClick={handleClearAll} className="btn btn-sm btn-ghost text-[var(--error)] hover:bg-[var(--error)]/5">
+              Clear all
             </button>
           </div>
         )}
       </div>
 
-      {savedPapers.length === 0 ? (
-        <div className="text-center py-16">
-          <svg
-            width="64"
-            height="64"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--color-text-tertiary)"
-            strokeWidth="1.5"
-            className="mx-auto mb-4"
-          >
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-          </svg>
-          <h2 className="text-xl font-semibold text-[var(--color-text-primary)] mb-2">
-            No saved papers yet
-          </h2>
-          <p className="text-[var(--color-text-secondary)] mb-6">
-            Save papers while searching to build your reading list
-          </p>
-          <Link href="/search" className="btn btn-primary">
-            Start Searching
+      {papers.length === 0 ? (
+        <div className="text-center py-24">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[var(--text-tertiary)]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
+          </div>
+          <h2 className="text-heading text-[16px] mb-1">No saved papers</h2>
+          <p className="text-[13px] text-[var(--text-tertiary)] mb-6">Papers you save will appear here.</p>
+          <Link href="/search" className="btn btn-md btn-primary">
+            Start searching
           </Link>
         </div>
       ) : (
         <div className="space-y-4">
-          {savedPapers.map((sp) => (
+          {papers.map(sp => (
             <div key={sp.paper.id} className="relative">
-              <PaperCard
-                paper={sp.paper}
-                onSave={handleRemove}
-                isSaved={true}
-              />
-              <div className="absolute top-4 right-4 text-xs text-[var(--color-text-tertiary)]">
-                Saved {formatDate(sp.savedAt)}
-              </div>
+              <PaperCard paper={sp.paper} onSave={handleRemove} isSaved />
+              <span className="absolute top-5 right-14 text-[11px] text-[var(--text-tertiary)]">
+                {formatDate(sp.savedAt)}
+              </span>
             </div>
           ))}
         </div>

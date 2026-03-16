@@ -5,14 +5,14 @@ interface BadgesProps {
   showAll?: boolean;
 }
 
-const sourceColors: Record<PaperSource, string> = {
+const sourceClass: Record<PaperSource, string> = {
   arxiv: 'badge-arxiv',
   pubmed: 'badge-pubmed',
   crossref: 'badge-crossref',
   openalex: 'badge-openalex',
 };
 
-const sourceLabels: Record<PaperSource, string> = {
+const sourceLabel: Record<PaperSource, string> = {
   arxiv: 'arXiv',
   pubmed: 'PubMed',
   crossref: 'CrossRef',
@@ -22,42 +22,25 @@ const sourceLabels: Record<PaperSource, string> = {
 export default function Badges({ paper, showAll = false }: BadgesProps) {
   return (
     <>
-      {/* Source badge */}
-      <span className={`badge ${sourceColors[paper.source]}`}>
-        {sourceLabels[paper.source]}
+      <span className={`badge ${sourceClass[paper.source]}`}>
+        {sourceLabel[paper.source]}
       </span>
 
-      {/* Access type badge */}
-      <span
-        className={`badge ${
-          paper.accessType === 'open' ? 'badge-open-access' : 'badge-restricted'
-        }`}
-      >
+      <span className={`badge ${paper.accessType === 'open' ? 'badge-open' : 'badge-restricted'}`}>
         {paper.accessType === 'open' ? 'Open Access' : 'Restricted'}
       </span>
 
-      {/* High citation badge */}
       {paper.citations >= 100 && (
-        <span className="badge bg-yellow-100 text-yellow-800">
-          Highly Cited
-        </span>
+        <span className="badge badge-cited">Highly Cited</span>
       )}
 
-      {/* Additional badges */}
       {showAll && (
         <>
-          {/* DOI badge */}
           {paper.externalIds.doi && (
-            <span className="badge bg-gray-100 text-gray-600">
-              DOI
-            </span>
+            <span className="badge badge-neutral">DOI</span>
           )}
-
-          {/* Discipline badge */}
           {paper.discipline && (
-            <span className="badge bg-purple-100 text-purple-700">
-              {paper.discipline}
-            </span>
+            <span className="badge badge-neutral">{paper.discipline}</span>
           )}
         </>
       )}
@@ -65,29 +48,17 @@ export default function Badges({ paper, showAll = false }: BadgesProps) {
   );
 }
 
-interface SourceBadgeProps {
-  source: PaperSource;
-}
-
-export function SourceBadge({ source }: SourceBadgeProps) {
+export function SourceBadge({ source }: { source: PaperSource }) {
   return (
-    <span className={`badge ${sourceColors[source]}`}>
-      {sourceLabels[source]}
+    <span className={`badge ${sourceClass[source]}`}>
+      {sourceLabel[source]}
     </span>
   );
 }
 
-interface AccessBadgeProps {
-  accessType: 'open' | 'restricted';
-}
-
-export function AccessBadge({ accessType }: AccessBadgeProps) {
+export function AccessBadge({ accessType }: { accessType: 'open' | 'restricted' }) {
   return (
-    <span
-      className={`badge ${
-        accessType === 'open' ? 'badge-open-access' : 'badge-restricted'
-      }`}
-    >
+    <span className={`badge ${accessType === 'open' ? 'badge-open' : 'badge-restricted'}`}>
       {accessType === 'open' ? 'Open Access' : 'Restricted'}
     </span>
   );

@@ -27,11 +27,11 @@ const defaultFilters: FilterState = {
   sort: 'relevance',
 };
 
-const sourceInfo = {
-  arxiv: { label: 'arXiv', color: '#b31b1b' },
-  pubmed: { label: 'PubMed', color: '#326898' },
-  crossref: { label: 'CrossRef', color: '#f36722' },
-  openalex: { label: 'OpenAlex', color: '#a51716' },
+const sourceConfig: Record<PaperSource, { label: string; dot: string }> = {
+  arxiv: { label: 'arXiv', dot: '#b31b1b' },
+  pubmed: { label: 'PubMed', dot: '#326898' },
+  crossref: { label: 'CrossRef', dot: '#f36722' },
+  openalex: { label: 'OpenAlex', dot: '#a51716' },
 };
 
 export default function FilterSidebar({
@@ -41,36 +41,25 @@ export default function FilterSidebar({
   const [filters, setFilters] = useState<FilterState>(initialFilters);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const updateFilters = (updates: Partial<FilterState>) => {
-    const newFilters = { ...filters, ...updates };
-    setFilters(newFilters);
-    onFilterChange(newFilters);
+  const update = (patch: Partial<FilterState>) => {
+    const next = { ...filters, ...patch };
+    setFilters(next);
+    onFilterChange(next);
   };
 
   const toggleSource = (source: PaperSource) => {
-    const newSources = filters.sources.includes(source)
+    const next = filters.sources.includes(source)
       ? filters.sources.filter(s => s !== source)
       : [...filters.sources, source];
-
-    // Ensure at least one source is selected
-    if (newSources.length > 0) {
-      updateFilters({ sources: newSources });
-    }
+    if (next.length > 0) update({ sources: next });
   };
 
-  const clearFilters = () => {
+  const reset = () => {
     setFilters(defaultFilters);
     onFilterChange(defaultFilters);
   };
 
-  const hasActiveFilters =
-    filters.sources.length < 4 ||
-    filters.accessType !== 'any' ||
-    filters.dateRange !== 'all' ||
-    filters.citationMin > 0 ||
-    filters.discipline !== '';
-
-  const activeFilterCount = [
+  const activeCount = [
     filters.sources.length < 4,
     filters.accessType !== 'any',
     filters.dateRange !== 'all',
@@ -79,232 +68,183 @@ export default function FilterSidebar({
   ].filter(Boolean).length;
 
   return (
-    <aside className="w-full lg:w-72 shrink-0">
+    <aside className="w-full lg:w-[260px] shrink-0">
       {/* Mobile toggle */}
       <button
-        className="lg:hidden w-full flex items-center justify-between px-4 py-3 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl mb-4 transition-all hover:border-[var(--brand-primary)]"
+        className="lg:hidden w-full flex items-center justify-between px-4 py-3 bg-[var(--bg-elevated)] border border-[var(--border-primary)] rounded-[var(--radius-md)] mb-3"
         onClick={() => setIsExpanded(!isExpanded)}
         aria-expanded={isExpanded}
-        aria-controls="filter-panel"
       >
-        <span className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[var(--bg-page)] border border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)]">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-            </svg>
-          </div>
-          <div className="text-left">
-            <div className="font-medium text-[var(--text-primary)]">Filters</div>
-            <div className="text-xs text-[var(--text-tertiary)]">
-              {activeFilterCount > 0 ? `${activeFilterCount} active` : 'None active'}
-            </div>
-          </div>
+        <span className="flex items-center gap-2 text-[14px] font-medium text-[var(--text-primary)]">
+          Filters
+          {activeCount > 0 && (
+            <span className="text-[11px] bg-[hsl(var(--accent))] text-white w-5 h-5 rounded-full flex items-center justify-center">
+              {activeCount}
+            </span>
+          )}
         </span>
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className={`text-[var(--text-tertiary)] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-        >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`text-[var(--text-tertiary)] transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
 
-      <div
-        id="filter-panel"
-        className={`
-          bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl overflow-hidden
-          lg:block transition-all duration-300 ease-in-out
-          ${isExpanded ? 'max-h-[2000px] opacit-100' : 'max-h-0 opacity-0 lg:max-h-none lg:opacity-100'}
-        `}
-      >
-        <div className="p-5 space-y-8">
+      <div className={`
+        bg-[var(--bg-elevated)] border border-[var(--border-primary)] rounded-[var(--radius-lg)] overflow-hidden
+        lg:block transition-all duration-300
+        ${isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 lg:max-h-none lg:opacity-100'}
+      `}>
+        <div className="p-4 space-y-6">
           {/* Sort */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
-              Sort By
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: 'relevance', label: 'Relevance' },
+          <Section label="Sort by">
+            <div className="grid grid-cols-3 gap-1.5">
+              {([
+                { value: 'relevance', label: 'Relevant' },
                 { value: 'date', label: 'Newest' },
-                { value: 'citations', label: 'Citations' },
-              ].map((option) => (
+                { value: 'citations', label: 'Cited' },
+              ] as const).map(opt => (
                 <button
-                  key={option.value}
-                  onClick={() => updateFilters({ sort: option.value as FilterState['sort'] })}
+                  key={opt.value}
+                  onClick={() => update({ sort: opt.value })}
                   className={`
-                    px-2 py-2 text-xs font-medium rounded-lg transition-all border
-                    ${filters.sort === option.value
-                      ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]'
-                      : 'bg-[var(--bg-page)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--brand-primary)] hover:text-[var(--text-primary)]'
+                    px-2 py-1.5 text-[12px] font-medium rounded-[var(--radius-sm)] transition-all border
+                    ${filters.sort === opt.value
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
+                      : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] hover:border-[var(--text-tertiary)]'
                     }
                   `}
                 >
-                  {option.label}
+                  {opt.label}
                 </button>
               ))}
             </div>
-          </div>
+          </Section>
 
           {/* Sources */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
-              Sources
-            </label>
-            <div className="space-y-2">
-              {(['arxiv', 'pubmed', 'crossref', 'openalex'] as PaperSource[]).map((source) => (
-                <label
-                  key={source}
-                  className="group flex items-center gap-3 p-2 -mx-2 rounded-lg cursor-pointer hover:bg-[var(--bg-surface-hover)] transition-colors"
-                >
-                  <div className="relative flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.sources.includes(source)}
-                      onChange={() => toggleSource(source)}
-                      className="peer w-4 h-4 appearance-none rounded border border-[var(--border-default)] checked:bg-[var(--brand-primary)] checked:border-[var(--brand-primary)] transition-all cursor-pointer"
-                    />
-                    <svg className="absolute w-3 h-3 text-white pointer-events-none opacity-0 peer-checked:opacity-100 left-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <Section label="Sources">
+            <div className="space-y-1">
+              {(Object.keys(sourceConfig) as PaperSource[]).map(source => (
+                <label key={source} className="flex items-center gap-2.5 py-1.5 px-2 -mx-2 rounded-[var(--radius-sm)] cursor-pointer hover:bg-[var(--bg-secondary)] transition-colors group">
+                  <input
+                    type="checkbox"
+                    checked={filters.sources.includes(source)}
+                    onChange={() => toggleSource(source)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-3.5 h-3.5 border border-[var(--border-primary)] rounded flex items-center justify-center peer-checked:bg-[var(--text-primary)] peer-checked:border-[var(--text-primary)] transition-all">
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--bg-primary)" strokeWidth="4" className="opacity-0 peer-checked:opacity-100">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                   </div>
-
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: sourceInfo[source].color }}
-                  />
-                  <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors font-medium">
-                    {sourceInfo[source].label}
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: sourceConfig[source].dot }} />
+                  <span className="text-[13px] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
+                    {sourceConfig[source].label}
                   </span>
                 </label>
               ))}
             </div>
-          </div>
+          </Section>
 
-          {/* Access Type */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
-              Access
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => updateFilters({ accessType: 'any' })}
-                className={`
-                  px-3 py-2 text-xs font-medium rounded-lg transition-all border
-                  ${filters.accessType === 'any'
-                    ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] border-[var(--brand-primary)]'
-                    : 'bg-[var(--bg-page)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--brand-primary)]'
-                  }
-                `}
-              >
-                All Papers
-              </button>
-              <button
-                onClick={() => updateFilters({ accessType: 'open' })}
-                className={`
-                  px-3 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1 border
-                  ${filters.accessType === 'open'
-                    ? 'bg-green-500/10 text-green-600 border-green-500'
-                    : 'bg-[var(--bg-page)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-green-500 hover:text-green-600'
-                  }
-                `}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-                </svg>
-                Open Access
-              </button>
+          {/* Access */}
+          <Section label="Access">
+            <div className="grid grid-cols-2 gap-1.5">
+              {([
+                { value: 'any', label: 'All' },
+                { value: 'open', label: 'Open Access' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => update({ accessType: opt.value })}
+                  className={`
+                    px-2 py-1.5 text-[12px] font-medium rounded-[var(--radius-sm)] transition-all border
+                    ${filters.accessType === opt.value
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
+                      : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] hover:border-[var(--text-tertiary)]'
+                    }
+                  `}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
-          </div>
+          </Section>
 
-          {/* Date Range */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
-              Date Range
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {[
+          {/* Date */}
+          <Section label="Date range">
+            <div className="grid grid-cols-2 gap-1.5">
+              {([
                 { value: 'all', label: 'All Time' },
                 { value: 'week', label: 'Past Week' },
                 { value: 'month', label: 'Past Month' },
                 { value: 'year', label: 'Past Year' },
-              ].map((option) => (
+              ] as const).map(opt => (
                 <button
-                  key={option.value}
-                  onClick={() => updateFilters({ dateRange: option.value as FilterState['dateRange'] })}
+                  key={opt.value}
+                  onClick={() => update({ dateRange: opt.value })}
                   className={`
-                    px-3 py-2 text-xs font-medium rounded-lg transition-all border
-                    ${filters.dateRange === option.value
-                      ? 'bg-[var(--brand-primary)] text-white border-[var(--brand-primary)]'
-                      : 'bg-[var(--bg-page)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:border-[var(--brand-primary)] hover:text-[var(--text-primary)]'
+                    px-2 py-1.5 text-[12px] font-medium rounded-[var(--radius-sm)] transition-all border
+                    ${filters.dateRange === opt.value
+                      ? 'bg-[var(--text-primary)] text-[var(--bg-primary)] border-[var(--text-primary)]'
+                      : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] hover:border-[var(--text-tertiary)]'
                     }
                   `}
                 >
-                  {option.label}
+                  {opt.label}
                 </button>
               ))}
             </div>
-          </div>
+          </Section>
 
-          {/* Minimum Citations */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
-              Minimum Citations
-            </label>
+          {/* Min Citations */}
+          <Section label="Minimum citations">
             <input
               type="number"
               min="0"
               value={filters.citationMin}
-              onChange={(e) => updateFilters({ citationMin: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 text-sm bg-[var(--bg-page)] border border-[var(--border-subtle)] rounded-lg focus:border-[var(--brand-primary)] focus:ring-1 focus:ring-[var(--brand-primary)] outline-none transition-all text-[var(--text-primary)]"
+              onChange={(e) => update({ citationMin: parseInt(e.target.value) || 0 })}
+              className="input text-[13px]"
               placeholder="0"
             />
-          </div>
+          </Section>
 
           {/* Discipline */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
-              Discipline
-            </label>
+          <Section label="Discipline">
             <div className="relative">
               <select
                 value={filters.discipline}
-                onChange={(e) => updateFilters({ discipline: e.target.value })}
-                className="w-full px-3 py-2 text-sm bg-[var(--bg-page)] border border-[var(--border-subtle)] rounded-lg focus:border-[var(--brand-primary)] focus:ring-1 focus:ring-[var(--brand-primary)] outline-none transition-all cursor-pointer appearance-none text-[var(--text-primary)]"
+                onChange={(e) => update({ discipline: e.target.value })}
+                className="input text-[13px] appearance-none cursor-pointer pr-8"
               >
                 <option value="">All disciplines</option>
                 {disciplines.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
+                  <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
               </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-tertiary)]">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Clear filters */}
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="w-full px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-page)] border border-[var(--border-subtle)] rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center gap-2"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-tertiary)]">
+                <path d="M6 9l6 6 6-6" />
               </svg>
+            </div>
+          </Section>
+
+          {/* Clear */}
+          {activeCount > 0 && (
+            <button
+              onClick={reset}
+              className="w-full py-2 text-[13px] font-medium text-[var(--text-tertiary)] hover:text-[var(--error)] transition-colors"
+            >
               Clear all filters
             </button>
           )}
         </div>
       </div>
     </aside>
+  );
+}
+
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <span className="text-label block mb-2">{label}</span>
+      {children}
+    </div>
   );
 }

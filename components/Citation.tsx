@@ -9,28 +9,23 @@ interface CitationProps {
 
 export default function Citation({ paper }: CitationProps) {
   const [format, setFormat] = useState<CitationFormat>('bibtex');
-  const [citation, setCitation] = useState<string>('');
+  const [citation, setCitation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
-  const fetchCitation = async (selectedFormat: CitationFormat) => {
+  const fetchCitation = async (f: CitationFormat) => {
     setIsLoading(true);
     setError('');
-    setFormat(selectedFormat);
-
+    setFormat(f);
     try {
-      const response = await fetch('/api/cite', {
+      const res = await fetch('/api/cite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paperId: paper.id, format: selectedFormat }),
+        body: JSON.stringify({ paperId: paper.id, format: f }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate citation');
-      }
-
-      const data = await response.json();
+      if (!res.ok) throw new Error('Failed to generate citation');
+      const data = await res.json();
       setCitation(data.citation);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate citation');
@@ -39,7 +34,7 @@ export default function Citation({ paper }: CitationProps) {
     }
   };
 
-  const copyToClipboard = async () => {
+  const copy = async () => {
     try {
       await navigator.clipboard.writeText(citation);
       setCopied(true);
@@ -50,19 +45,21 @@ export default function Citation({ paper }: CitationProps) {
   };
 
   return (
-    <div className="bg-[var(--color-bg-secondary)] rounded-lg p-4">
+    <div className="card p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
-          Cite this paper
-        </h3>
-        <div className="flex gap-2">
-          {(['bibtex', 'apa', 'mla'] as CitationFormat[]).map((f) => (
+        <span className="text-[13px] font-semibold text-[var(--text-primary)]">Cite this paper</span>
+        <div className="flex gap-1">
+          {(['bibtex', 'apa', 'mla'] as CitationFormat[]).map(f => (
             <button
               key={f}
               onClick={() => fetchCitation(f)}
-              className={`btn text-xs ${
-                format === f && citation ? 'btn-primary' : 'btn-ghost'
-              }`}
+              className={`
+                px-2.5 py-1 text-[12px] font-medium rounded-[var(--radius-sm)] transition-all
+                ${format === f && citation
+                  ? 'bg-[var(--text-primary)] text-[var(--bg-primary)]'
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                }
+              `}
             >
               {f.toUpperCase()}
             </button>
@@ -71,50 +68,31 @@ export default function Citation({ paper }: CitationProps) {
       </div>
 
       {isLoading && (
-        <div className="text-center py-4 text-[var(--color-text-tertiary)]">
-          Generating citation...
-        </div>
+        <div className="py-6 text-center text-[13px] text-[var(--text-tertiary)]">Generating...</div>
       )}
 
       {error && (
-        <div className="text-center py-4 text-[var(--color-error)]">
-          {error}
-        </div>
+        <div className="py-4 text-center text-[13px] text-[var(--error)]">{error}</div>
       )}
 
       {citation && !isLoading && (
         <div className="relative">
-          <pre className="bg-white border border-[var(--color-border-light)] rounded p-3 text-xs overflow-x-auto whitespace-pre-wrap font-mono">
+          <pre className="bg-[var(--bg-inset)] border border-[var(--border-secondary)] rounded-[var(--radius-md)] p-3 text-[12px] text-[var(--text-secondary)] overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed">
             {citation}
           </pre>
           <button
-            onClick={copyToClipboard}
-            className="absolute top-2 right-2 btn btn-ghost text-xs"
+            onClick={copy}
+            className="absolute top-2 right-2 btn-sm btn-ghost text-[11px]"
             aria-label="Copy citation"
           >
-            {copied ? (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Copied!
-              </>
-            ) : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                </svg>
-                Copy
-              </>
-            )}
+            {copied ? '✓ Copied' : 'Copy'}
           </button>
         </div>
       )}
 
       {!citation && !isLoading && !error && (
-        <p className="text-sm text-[var(--color-text-tertiary)] text-center py-4">
-          Click a format above to generate a citation
+        <p className="py-6 text-center text-[13px] text-[var(--text-tertiary)]">
+          Select a format to generate a citation
         </p>
       )}
     </div>
