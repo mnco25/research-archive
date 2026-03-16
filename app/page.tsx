@@ -149,6 +149,31 @@ export default function Home() {
           </div>
         </div>
       </section>
+      
+      {/* ======== INSTITUTIONAL TRUST ======== */}
+      <section className="relative py-12 border-y border-[var(--border-secondary)] bg-[var(--bg-secondary)]/50 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-[var(--bg-secondary)] via-transparent to-[var(--bg-secondary)] z-10 pointer-events-none"></div>
+        <div className="flex flex-col items-center gap-6">
+          <div className="text-[11px] font-bold text-[var(--text-tertiary)] uppercase tracking-[0.3em] mb-2"> Trusted by scholars at leading institutions</div>
+          <div className="flex whitespace-nowrap overflow-hidden group">
+            <div className="flex items-center gap-12 md:gap-24 animate-marquee group-hover:[animation-play-state:paused] py-2">
+              {[
+                'University of the Philippines', 'Ateneo de Manila', 'De La Salle University', 
+                'University of Santo Tomas', 'Silliman University', 'Mapúa University', 
+                'Polytechnic University of the Philippines', 'MSU-IIT', 'University of San Carlos'
+              ].concat([
+                'University of the Philippines', 'Ateneo de Manila', 'De La Salle University', 
+                'University of Santo Tomas', 'Silliman University', 'Mapúa University', 
+                'Polytechnic University of the Philippines', 'MSU-IIT', 'University of San Carlos'
+              ]).map((uni, i) => (
+                <span key={`${uni}-${i}`} className="text-[20px] md:text-[24px] font-bold text-[var(--text-tertiary)]/40 hover:text-[var(--text-primary)] transition-all duration-300 cursor-default select-none tracking-tight">
+                  {uni}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ======== FEATURES ======== */}
       <section className="relative py-32 md:py-48 border-t border-[var(--border-secondary)] overflow-hidden">
@@ -225,8 +250,9 @@ export default function Home() {
             <div className="flex flex-wrap gap-3 md:justify-end max-w-2xl">
               {[
                 'Quantum Computing', 'Neural Networks', 'Sustainable Energy', 
-                'Genomics', 'Climate Science', 'Tropical Medicine', 
-                'Space Exploration', 'Marine Biology', 'Public Health'
+                'Genomics', 'Climate Science', 'Tropical Agriculture', 
+                'Space Exploration', 'Marine Biology', 'Public Health',
+                'Disaster Risk Management', 'Blue Economy', 'Urban Planning'
               ].map((area, i) => (
                 <Link 
                   key={area} 
@@ -324,13 +350,17 @@ export default function Home() {
                   {/* Subtle Grid overlay */}
                   <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:32px_32px]"></div>
                   
-                  {/* Animated 'Data nodes' circulating */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] border border-[var(--border-primary)]/40 rounded-full animate-spin-slow">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-[hsl(var(--accent))] rounded-full shadow-[0_0_15px_hsl(var(--accent))]"></div>
+                  {/* Animated 'Data nodes' circulating - Core System */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[85%] border border-[var(--border-primary)]/40 rounded-full animate-spin-slow">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-[hsl(var(--accent))] rounded-full shadow-[0_0_20px_hsl(var(--accent))]"></div>
                   </div>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60%] h-[60%] border border-[var(--border-primary)]/40 rounded-full animate-spin-slow-reverse" style={{ animationDuration: '30s' }}>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[65%] h-[65%] border border-[var(--border-primary)]/40 rounded-full animate-spin-slow-reverse" style={{ animationDuration: '30s' }}>
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-[hsl(280,80%,65%)] rounded-full shadow-[0_0_15px_hsl(280,80%,65%)]"></div>
                   </div>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[45%] h-[45%] border border-[hsl(var(--accent)/0.2)] rounded-full animate-pulse-slow"></div>
+                  
+                  {/* Digital Scanning Pulse */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[hsl(var(--accent)/0.05)] to-transparent h-1/2 w-full animate-scan pointer-events-none"></div>
                   
                   <div className="absolute inset-0 flex items-center justify-center p-12 text-center">
                     <div className="animate-float">
