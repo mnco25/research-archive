@@ -1,21 +1,30 @@
 export function PaperCardSkeleton() {
   return (
-    <div className="card p-5">
-      <div className="flex gap-2 mb-3">
-        <div className="h-5 w-14 skeleton rounded-full" />
-        <div className="h-5 w-20 skeleton rounded-full" />
+    <div className="flex flex-col h-full min-w-0 p-6 md:p-7 rounded-[1.8rem] bg-[var(--bg-elevated)]/20 border border-[var(--border-primary)]/40 overflow-hidden">
+      <div className="flex gap-2 mb-5">
+        <div className="h-6 w-16 skeleton rounded-full" />
+        <div className="h-6 w-24 skeleton rounded-full" />
       </div>
-      <div className="h-5 w-3/4 skeleton mb-2" />
-      <div className="h-5 w-1/2 skeleton mb-3" />
-      <div className="h-4 w-1/3 skeleton mb-4" />
-      <div className="space-y-2 mb-4">
-        <div className="h-3.5 w-full skeleton" />
-        <div className="h-3.5 w-4/5 skeleton" />
+      
+      <div className="h-6 w-full skeleton mb-3 rounded-md" />
+      <div className="h-6 w-3/4 skeleton mb-5 rounded-md" />
+      
+      <div className="h-4 w-1/2 skeleton mb-6 rounded-md" />
+      
+      <div className="space-y-3 mb-6">
+        <div className="h-4 w-full skeleton rounded-md" />
+        <div className="h-4 w-5/6 skeleton rounded-md" />
+        <div className="h-4 w-4/6 skeleton rounded-md" />
       </div>
-      <div className="h-px bg-[var(--border-secondary)]" />
-      <div className="flex gap-4 pt-3">
-        <div className="h-3.5 w-20 skeleton" />
-        <div className="h-3.5 w-16 skeleton" />
+
+      <div className="flex-1" />
+      
+      <div className="flex justify-between pt-5 border-t border-[var(--border-secondary)]/50 mt-auto">
+        <div className="flex gap-4">
+          <div className="h-4 w-16 skeleton rounded-md" />
+          <div className="h-4 w-20 skeleton rounded-md" />
+        </div>
+        <div className="h-4 w-10 skeleton rounded-md" />
       </div>
     </div>
   );

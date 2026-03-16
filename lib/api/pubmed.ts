@@ -202,12 +202,18 @@ function articleToPaper(article: PubMedArticle): Paper {
     d => d['@_PubStatus'] === 'pubmed'
   );
   if (pubDate) {
-    date = `${pubDate.Year}-${pubDate.Month.padStart(2, '0')}-${pubDate.Day.padStart(2, '0')}`;
+    const y = String(pubDate.Year);
+    const m = String(pubDate.Month).padStart(2, '0');
+    const d = String(pubDate.Day).padStart(2, '0');
+    date = `${y}-${m}-${d}`;
   } else if (citation.DateRevised) {
     const dr = citation.DateRevised;
-    date = `${dr.Year}-${dr.Month.padStart(2, '0')}-${dr.Day.padStart(2, '0')}`;
+    const y = String(dr.Year);
+    const m = String(dr.Month).padStart(2, '0');
+    const d = String(dr.Day).padStart(2, '0');
+    date = `${y}-${m}-${d}`;
   }
-
+  
   // Get keywords from MeSH terms
   const keywords = citation.MeshHeadingList?.MeshHeading?.map(
     mh => mh.DescriptorName['#text']

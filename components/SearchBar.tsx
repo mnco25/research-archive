@@ -108,6 +108,19 @@ export default function SearchBar({
 
   useEffect(() => {
     if (autoFocus && inputRef.current) inputRef.current.focus();
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [autoFocus]);
 
   return (
@@ -116,17 +129,16 @@ export default function SearchBar({
         <div
           className={`
             relative flex items-center bg-[var(--bg-elevated)] border rounded-[var(--radius-lg)]
-            transition-all
+            transition-all duration-500 ease-out
             ${isFocused
-              ? 'border-[hsl(var(--accent))] shadow-[var(--shadow-focus)]'
-              : 'border-[var(--border-primary)] shadow-[var(--shadow-sm)]'
+              ? 'border-[hsl(var(--accent))] shadow-[0_0_0_4px_hsl(var(--accent)/0.15)] ring-1 ring-[hsl(var(--accent)/0.5)]'
+              : 'border-[var(--border-primary)] shadow-[var(--shadow-sm)] hover:border-[var(--text-tertiary)] hover:shadow-md'
             }
           `}
-          style={{ transitionDuration: 'var(--duration-fast)' }}
         >
-          {/* Icon */}
-          <div className={`pl-4 transition-colors ${isFocused ? 'text-[hsl(var(--accent))]' : 'text-[var(--text-tertiary)]'}`}>
-            <svg width={large ? 20 : 16} height={large ? 20 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          {/* Icon with scale bounce on focus */}
+          <div className={`pl-5 transition-all duration-500 ease-out flex items-center justify-center ${isFocused ? 'text-[hsl(var(--accent))] scale-110 drop-shadow-[0_0_8px_hsl(var(--accent)/0.5)]' : 'text-[var(--text-tertiary)] scale-100'}`}>
+            <svg width={large ? 22 : 18} height={large ? 22 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
@@ -144,9 +156,10 @@ export default function SearchBar({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             className={`
-              flex-1 bg-transparent border-none outline-none
+              flex-1 bg-transparent border-none outline-none font-medium tracking-tight
               text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)]
-              ${large ? 'h-[52px] text-[15px] px-3' : 'h-[40px] text-[14px] px-3'}
+              transition-all duration-300
+              ${large ? 'h-[60px] text-[17px] px-4' : 'h-[44px] text-[15px] px-3'}
             `}
             aria-label="Search papers"
           />
@@ -155,18 +168,24 @@ export default function SearchBar({
             <button
               type="button"
               onClick={() => { setQuery(''); setSuggestions([]); inputRef.current?.focus(); }}
-              className="p-1.5 mr-1 rounded text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+              className="p-2 mr-1 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
             </button>
           )}
+
+          {/* Keyboard shortcut indicator */}
+          <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-tertiary)] mr-2 select-none">
+             <span>⌘</span>
+             <span>K</span>
+          </div>
 
           <button
             type="submit"
             className={`
-              flex-shrink-0 bg-[var(--text-primary)] text-[var(--bg-primary)] font-medium
-              hover:opacity-85 active:scale-[0.97] transition-all mr-2
-              ${large ? 'px-6 h-[42px] rounded-[var(--radius-md)] text-[14px]' : 'px-4 h-[32px] rounded-[var(--radius-sm)] text-[13px]'}
+              flex-shrink-0 bg-[var(--text-primary)] text-[var(--bg-primary)] font-bold tracking-wide
+              hover:opacity-90 active:scale-[0.95] transition-all duration-300 mr-2 ml-1 shadow-[0_4px_14px_0_rgba(255,255,255,0.1)] hover:shadow-[0_6px_20px_rgba(255,255,255,0.2)]
+              ${large ? 'px-8 h-[48px] rounded-xl text-[15px]' : 'px-5 h-[36px] rounded-lg text-[13px]'}
             `}
           >
             Search
@@ -176,7 +195,7 @@ export default function SearchBar({
 
       {/* Suggestions dropdown */}
       {showSuggestions && (suggestions.length > 0 || isLoading) && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--bg-elevated)] border border-[var(--border-primary)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] z-50 overflow-hidden animate-fade">
+        <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 bg-[var(--bg-elevated)]/80 backdrop-blur-3xl border border-[var(--border-primary)]/80 rounded-2xl shadow-[0_12px_48px_rgba(0,0,0,0.5)] z-50 overflow-hidden animate-in filter drop-shadow-2xl">
           {isLoading ? (
             <div className="px-4 py-6 flex items-center justify-center gap-3 text-[var(--text-tertiary)]">
               <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
