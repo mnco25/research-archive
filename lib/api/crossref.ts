@@ -1,6 +1,6 @@
-import axios from 'axios';
 import type { Paper } from '@/lib/types';
 import { cleanHtml, generatePaperId } from '@/lib/utils';
+import { httpGet } from '@/lib/http';
 
 const CROSSREF_API_BASE = 'https://api.crossref.org/v1/works';
 
@@ -19,6 +19,7 @@ interface CrossRefWork {
   abstract?: string;
   'published-print'?: { 'date-parts': number[][] };
   'published-online'?: { 'date-parts': number[][] };
+  issued?: { 'date-parts': number[][] };
   created?: { 'date-parts': number[][] };
   'is-referenced-by-count'?: number;
   type?: string;
@@ -26,69 +27,50 @@ interface CrossRefWork {
   subject?: string[];
   link?: { URL: string; 'content-type'?: string }[];
   URL?: string;
-  license?: { URL: string; 'content-version': string }[];
+  license?: { URL: string }[];
 }
 
-interface CrossRefResponse {
-  status: string;
-  'message-type': string;
-  message: {
-    items?: CrossRefWork[];
-    'total-results'?: number;
-    'items-per-page'?: number;
-  } | CrossRefWork;
+interface CrossRefSearchResponse {
+  message: { items: CrossRefWork[]; 'total-results': number };
 }
 
-/**
- * Format date from CrossRef date-parts
- */
-function formatDateParts(dateParts: number[][] | undefined): string {
-  if (!dateParts || dateParts.length === 0 || !dateParts[0]) {
-    return new Date().toISOString().split('T')[0];
-  }
+interface CrossRefSingleResponse {
+  message: CrossRefWork;
+}
 
+function formatDateParts(dateParts?: number[][]): string {
+  if (!dateParts?.[0]?.[0]) return '';
   const [year, month, day] = dateParts[0];
-  const m = (month || 1).toString().padStart(2, '0');
-  const d = (day || 1).toString().padStart(2, '0');
-  return `${year}-${m}-${d}`;
+  return `${year}-${String(month || 1).padStart(2, '0')}-${String(day || 1).padStart(2, '0')}`;
 }
 
-/**
- * Determine access type from license
- */
+function pickDate(work: CrossRefWork): string {
+  return (
+    formatDateParts(work['published-print']?.['date-parts']) ||
+    formatDateParts(work['published-online']?.['date-parts']) ||
+    formatDateParts(work.issued?.['date-parts']) ||
+    formatDateParts(work.created?.['date-parts'])
+  );
+}
+
+const OPEN_LICENSE_HINTS = ['creativecommons.org', '/cc-by', '/cc0', '/publicdomain', 'open-access'];
+
 function getAccessType(work: CrossRefWork): 'open' | 'restricted' {
-  if (work.license) {
-    const openLicenses = ['creativecommons.org', 'open-access'];
-    const hasOpenLicense = work.license.some(l =>
-      openLicenses.some(ol => l.URL.includes(ol))
-    );
-    if (hasOpenLicense) return 'open';
-  }
-  return 'restricted';
+  if (!work.license?.length) return 'restricted';
+  const isOpen = work.license.some(l => OPEN_LICENSE_HINTS.some(hint => l.URL.toLowerCase().includes(hint)));
+  return isOpen ? 'open' : 'restricted';
 }
 
-/**
- * Convert CrossRef work to Paper format
- */
 function workToPaper(work: CrossRefWork): Paper {
   const authors = (work.author || []).map(a => ({
     name: a.name || `${a.given || ''} ${a.family || ''}`.trim() || 'Unknown',
     affiliation: a.affiliation?.[0]?.name,
-    orcid: a.ORCID,
+    orcid: a.ORCID?.replace(/^https?:\/\/orcid\.org\//, ''),
   }));
 
-  const date = formatDateParts(
-    work['published-print']?.['date-parts'] ||
-    work['published-online']?.['date-parts'] ||
-    work.created?.['date-parts']
-  );
-
-  // Get PDF URL if available
   let pdfUrl: string | undefined;
   if (work.link) {
-    const pdfLink = work.link.find(l =>
-      l['content-type']?.includes('pdf') || l.URL.includes('.pdf')
-    );
+    const pdfLink = work.link.find(l => l['content-type']?.includes('pdf') || l.URL.toLowerCase().endsWith('.pdf'));
     pdfUrl = pdfLink?.URL;
   }
 
@@ -97,24 +79,19 @@ function workToPaper(work: CrossRefWork): Paper {
     title: work.title?.[0] ? cleanHtml(work.title[0]) : 'Untitled',
     authors,
     abstract: work.abstract ? cleanHtml(work.abstract) : '',
-    date,
+    date: pickDate(work),
     source: 'crossref',
-    externalIds: {
-      doi: work.DOI,
-    },
+    externalIds: { doi: work.DOI },
     citations: work['is-referenced-by-count'] || 0,
     accessType: getAccessType(work),
     url: work.URL || `https://doi.org/${work.DOI}`,
     pdfUrl,
     journal: work['container-title']?.[0],
-    keywords: work.subject,
+    keywords: work.subject?.slice(0, 10),
     discipline: work.subject?.[0],
   };
 }
 
-/**
- * Search CrossRef for papers
- */
 export async function searchCrossRef(
   query: string,
   options: {
@@ -122,103 +99,45 @@ export async function searchCrossRef(
     rows?: number;
     sort?: 'score' | 'relevance' | 'published' | 'is-referenced-by-count';
     order?: 'asc' | 'desc';
-    filter?: {
-      fromDate?: string;
-      toDate?: string;
-      hasAbstract?: boolean;
-    };
+    filter?: { fromDate?: string; toDate?: string; hasAbstract?: boolean };
   } = {}
 ): Promise<{ papers: Paper[]; total: number }> {
-  const {
-    offset = 0,
-    rows = 20,
-    sort = 'score',
-    order = 'desc',
-    filter,
-  } = options;
+  const { offset = 0, rows = 20, sort = 'score', order = 'desc', filter } = options;
 
   const params = new URLSearchParams({
     query,
-    offset: offset.toString(),
-    rows: rows.toString(),
+    offset: String(offset),
+    rows: String(Math.min(rows, 100)),
     sort: sort === 'relevance' ? 'score' : sort,
     order,
+    select: 'DOI,title,author,abstract,published-print,published-online,issued,created,is-referenced-by-count,type,container-title,subject,link,URL,license',
   });
 
-  // Add filters
   const filters: string[] = [];
-  if (filter?.fromDate) {
-    filters.push(`from-pub-date:${filter.fromDate}`);
-  }
-  if (filter?.toDate) {
-    filters.push(`until-pub-date:${filter.toDate}`);
-  }
-  if (filter?.hasAbstract) {
-    filters.push('has-abstract:true');
-  }
-  if (filters.length > 0) {
-    params.set('filter', filters.join(','));
-  }
+  if (filter?.fromDate) filters.push(`from-pub-date:${filter.fromDate}`);
+  if (filter?.toDate) filters.push(`until-pub-date:${filter.toDate}`);
+  if (filter?.hasAbstract) filters.push('has-abstract:true');
+  if (filters.length) params.set('filter', filters.join(','));
 
-  try {
-    const response = await axios.get(`${CROSSREF_API_BASE}?${params}`, {
-      headers: {
-        'User-Agent': 'ResearchArchive/1.0 (Academic Search Engine; mailto:research@example.com)',
-      },
-      timeout: 30000,
-    });
-
-    const result: CrossRefResponse = response.data;
-    const message = result.message as { items?: CrossRefWork[]; 'total-results'?: number };
-
-    if (!message.items || message.items.length === 0) {
-      return { papers: [], total: 0 };
-    }
-
-    const papers = message.items.map(workToPaper);
-    const total = message['total-results'] || papers.length;
-
-    return { papers, total };
-  } catch (error) {
-    console.error('CrossRef API error:', error);
-    throw new Error('Failed to search CrossRef');
-  }
+  const response = await httpGet<CrossRefSearchResponse>(`${CROSSREF_API_BASE}?${params}`);
+  const items = response.data.message?.items || [];
+  return {
+    papers: items.map(workToPaper),
+    total: response.data.message?.['total-results'] || items.length,
+  };
 }
 
-/**
- * Get a specific paper from CrossRef by DOI
- */
 export async function getCrossRefPaper(doi: string): Promise<Paper | null> {
   try {
-    const response = await axios.get(`${CROSSREF_API_BASE}/${encodeURIComponent(doi)}`, {
-      headers: {
-        'User-Agent': 'ResearchArchive/1.0 (Academic Search Engine; mailto:research@example.com)',
-      },
-      timeout: 30000,
-    });
-
-    const result: CrossRefResponse = response.data;
-    const work = result.message as CrossRefWork;
-
-    if (!work.DOI) {
-      return null;
-    }
-
+    const cleaned = doi.replace(/^https?:\/\/(dx\.)?doi\.org\//, '');
+    const response = await httpGet<CrossRefSingleResponse>(
+      `${CROSSREF_API_BASE}/${encodeURIComponent(cleaned)}`
+    );
+    const work = response.data.message;
+    if (!work?.DOI) return null;
     return workToPaper(work);
   } catch (error) {
-    console.error('CrossRef API error:', error);
+    console.error('CrossRef getPaper error:', error);
     return null;
-  }
-}
-
-/**
- * Get citation count for a DOI
- */
-export async function getCitationCount(doi: string): Promise<number> {
-  try {
-    const paper = await getCrossRefPaper(doi);
-    return paper?.citations || 0;
-  } catch {
-    return 0;
   }
 }

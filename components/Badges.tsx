@@ -22,44 +22,29 @@ const sourceLabel: Record<PaperSource, string> = {
 export default function Badges({ paper, showAll = false }: BadgesProps) {
   return (
     <>
-      <span className={`badge ${sourceClass[paper.source]}`}>
-        {sourceLabel[paper.source]}
-      </span>
-
+      <span className={`badge ${sourceClass[paper.source]}`}>{sourceLabel[paper.source]}</span>
       <span className={`badge ${paper.accessType === 'open' ? 'badge-open' : 'badge-restricted'}`}>
-        {paper.accessType === 'open' ? 'Open Access' : 'Restricted'}
+        {paper.accessType === 'open' ? 'Open' : 'Restricted'}
       </span>
-
-      {paper.citations >= 100 && (
-        <span className="badge badge-cited">Highly Cited</span>
-      )}
-
-      {showAll && (
-        <>
-          {paper.externalIds.doi && (
-            <span className="badge badge-neutral">DOI</span>
-          )}
-          {paper.discipline && (
-            <span className="badge badge-neutral">{paper.discipline}</span>
-          )}
-        </>
+      {paper.citations >= 100 && <span className="badge badge-cited">Highly Cited</span>}
+      {showAll && paper.externalIds.doi && <span className="badge badge-neutral">DOI</span>}
+      {showAll && paper.discipline && (
+        <span className="badge badge-neutral truncate max-w-[180px]" title={paper.discipline}>
+          {paper.discipline}
+        </span>
       )}
     </>
   );
 }
 
 export function SourceBadge({ source }: { source: PaperSource }) {
-  return (
-    <span className={`badge ${sourceClass[source]}`}>
-      {sourceLabel[source]}
-    </span>
-  );
+  return <span className={`badge ${sourceClass[source]}`}>{sourceLabel[source]}</span>;
 }
 
 export function AccessBadge({ accessType }: { accessType: 'open' | 'restricted' }) {
   return (
     <span className={`badge ${accessType === 'open' ? 'badge-open' : 'badge-restricted'}`}>
-      {accessType === 'open' ? 'Open Access' : 'Restricted'}
+      {accessType === 'open' ? 'Open' : 'Restricted'}
     </span>
   );
 }

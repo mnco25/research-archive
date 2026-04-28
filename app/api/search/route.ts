@@ -1,81 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SearchRequestSchema } from '@/lib/types';
+import { SearchRequestSchema, type PaperSource } from '@/lib/types';
 import { unifiedSearch } from '@/lib/search';
+
+export const runtime = 'nodejs';
+
+const VALID_SOURCES = new Set<PaperSource>(['arxiv', 'pubmed', 'crossref', 'openalex']);
+
+function badRequest(message: string, details?: unknown) {
+  return NextResponse.json(
+    { error: 'Validation Error', message, details },
+    { status: 400 }
+  );
+}
+
+function serverError(error: unknown) {
+  console.error('Search API error:', error);
+  return NextResponse.json(
+    { error: 'Search Error', message: error instanceof Error ? error.message : 'Unexpected error' },
+    { status: 500 }
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-
-    // Validate request
-    const parseResult = SearchRequestSchema.safeParse(body);
-
-    if (!parseResult.success) {
-      return NextResponse.json(
-        {
-          error: 'Validation Error',
-          message: 'Invalid search request',
-          details: parseResult.error.flatten(),
-        },
-        { status: 400 }
-      );
+    const parsed = SearchRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return badRequest('Invalid search request', parsed.error.flatten());
     }
-
-    const searchRequest = parseResult.data;
-
-    // Perform unified search
-    const result = await unifiedSearch(searchRequest);
-
+    const result = await unifiedSearch(parsed.data);
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Search API error:', error);
-
-    return NextResponse.json(
-      {
-        error: 'Search Error',
-        message: error instanceof Error ? error.message : 'An unexpected error occurred',
-      },
-      { status: 500 }
-    );
+    return serverError(error);
   }
 }
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const query = searchParams.get('q');
+  const sp = request.nextUrl.searchParams;
+  const query = sp.get('q');
+  if (!query) return badRequest('Query parameter "q" is required');
 
-  if (!query) {
-    return NextResponse.json(
-      {
-        error: 'Validation Error',
-        message: 'Query parameter "q" is required',
-      },
-      { status: 400 }
-    );
-  }
+  const sourcesParam = sp.get('sources');
+  const sources = sourcesParam
+    ? (sourcesParam.split(',').map(s => s.trim().toLowerCase()).filter(s => VALID_SOURCES.has(s as PaperSource)) as PaperSource[])
+    : undefined;
+
+  const dateFrom = sp.get('from');
+  const dateTo = sp.get('to');
+  const dateRange = dateFrom && dateTo ? { from: dateFrom, to: dateTo } : undefined;
+
+  const candidate = {
+    query,
+    page: parseInt(sp.get('page') || '1', 10),
+    limit: parseInt(sp.get('limit') || '20', 10),
+    sort: (sp.get('sort') as 'relevance' | 'date' | 'citations') || 'relevance',
+    accessType: (sp.get('access') as 'open' | 'any') || undefined,
+    citationMin: sp.get('citationMin') ? parseInt(sp.get('citationMin')!, 10) : undefined,
+    discipline: sp.get('discipline') || undefined,
+    sources,
+    dateRange,
+  };
+
+  const parsed = SearchRequestSchema.safeParse(candidate);
+  if (!parsed.success) return badRequest('Invalid search request', parsed.error.flatten());
 
   try {
-    // Build search request from query params
-    const searchRequest = {
-      query,
-      page: parseInt(searchParams.get('page') || '1', 10),
-      limit: parseInt(searchParams.get('limit') || '20', 10),
-      sort: (searchParams.get('sort') as 'relevance' | 'date' | 'citations') || 'relevance',
-      accessType: (searchParams.get('access') as 'open' | 'any') || undefined,
-      sources: searchParams.get('sources')?.split(',') as ('arxiv' | 'pubmed' | 'crossref' | 'openalex')[] || undefined,
-    };
-
-    const result = await unifiedSearch(searchRequest);
-
+    const result = await unifiedSearch(parsed.data);
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Search API error:', error);
-
-    return NextResponse.json(
-      {
-        error: 'Search Error',
-        message: error instanceof Error ? error.message : 'An unexpected error occurred',
-      },
-      { status: 500 }
-    );
+    return serverError(error);
   }
 }

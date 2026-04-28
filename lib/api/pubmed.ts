@@ -1,8 +1,18 @@
-import axios from 'axios';
+import { XMLParser } from 'fast-xml-parser';
 import type { Paper } from '@/lib/types';
 import { cleanHtml, generatePaperId } from '@/lib/utils';
+import { httpGet } from '@/lib/http';
 
 const EUTILS_BASE = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils';
+const ICITE_BASE = 'https://icite.od.nih.gov/api/pubs';
+const API_KEY = process.env.PUBMED_API_KEY;
+
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  parseTagValue: false,
+  trimValues: true,
+});
 
 interface ESearchResult {
   esearchresult: {
@@ -10,279 +20,278 @@ interface ESearchResult {
     retmax: string;
     retstart: string;
     idlist: string[];
-    querytranslation?: string;
   };
+}
+
+interface PubMedDate {
+  Year: string | number;
+  Month?: string | number;
+  Day?: string | number;
+  '@_PubStatus'?: string;
+}
+
+interface PubMedAuthor {
+  LastName?: string;
+  ForeName?: string;
+  Initials?: string;
+  CollectiveName?: string;
+  AffiliationInfo?: { Affiliation: string }[] | { Affiliation: string };
 }
 
 interface PubMedArticle {
   MedlineCitation: {
     PMID: { '#text': string } | string;
     Article: {
-      ArticleTitle: string;
+      ArticleTitle: string | { '#text': string };
       Abstract?: {
-        AbstractText: string | { '#text': string }[] | { '#text': string };
+        AbstractText:
+          | string
+          | { '#text': string; '@_Label'?: string }
+          | (string | { '#text': string; '@_Label'?: string })[];
       };
-      AuthorList?: {
-        Author: Array<{
-          LastName?: string;
-          ForeName?: string;
-          Initials?: string;
-          AffiliationInfo?: { Affiliation: string }[];
-        }> | {
-          LastName?: string;
-          ForeName?: string;
-          Initials?: string;
-          AffiliationInfo?: { Affiliation: string }[];
-        };
-      };
+      AuthorList?: { Author: PubMedAuthor | PubMedAuthor[] };
       Journal?: {
         Title?: string;
         ISOAbbreviation?: string;
+        JournalIssue?: { PubDate?: PubMedDate };
       };
-      ArticleDate?: { Year: string; Month: string; Day: string }[];
-      ELocationID?: { '#text': string; '@_EIdType': string }[] | { '#text': string; '@_EIdType': string };
+      ArticleDate?: PubMedDate | PubMedDate[];
+      ELocationID?:
+        | { '#text': string; '@_EIdType': string }
+        | { '#text': string; '@_EIdType': string }[];
     };
-    DateRevised?: { Year: string; Month: string; Day: string };
     MeshHeadingList?: {
-      MeshHeading?: Array<{
-        DescriptorName: { '#text': string };
-      }>;
+      MeshHeading?: { DescriptorName: { '#text': string } | string }[];
+    };
+    KeywordList?: {
+      Keyword?: ({ '#text': string } | string) | ({ '#text': string } | string)[];
     };
   };
   PubmedData?: {
     ArticleIdList?: {
-      ArticleId: Array<{ '#text': string; '@_IdType': string }> | { '#text': string; '@_IdType': string };
+      ArticleId:
+        | { '#text': string; '@_IdType': string }
+        | { '#text': string; '@_IdType': string }[];
     };
-    PublicationStatus?: string;
-    History?: {
-      PubMedPubDate: Array<{ Year: string; Month: string; Day: string; '@_PubStatus': string }>;
-    };
+    History?: { PubMedPubDate?: PubMedDate | PubMedDate[] };
   };
 }
 
 interface EFetchResult {
-  PubmedArticleSet?: {
-    PubmedArticle?: PubMedArticle | PubMedArticle[];
-  };
+  PubmedArticleSet?: { PubmedArticle?: PubMedArticle | PubMedArticle[] };
 }
 
-/**
- * Search PubMed and get paper UIDs
- */
-async function searchPubMedIds(
-  query: string,
-  options: {
-    retstart?: number;
-    retmax?: number;
-  } = {}
-): Promise<{ ids: string[]; total: number }> {
-  const { retstart = 0, retmax = 20 } = options;
+const monthNames: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
 
-  const url = `${EUTILS_BASE}/esearch.fcgi`;
-  const params = new URLSearchParams({
-    db: 'pubmed',
-    term: query,
-    retstart: retstart.toString(),
-    retmax: retmax.toString(),
-    retmode: 'json',
-    sort: 'relevance',
-  });
+function pad(value: string | number | undefined, fallback: string): string {
+  if (value == null) return fallback;
+  const str = String(value).trim();
+  if (!str) return fallback;
+  const lower = str.toLowerCase().slice(0, 3);
+  if (monthNames[lower]) return monthNames[lower];
+  return str.padStart(2, '0');
+}
 
-  try {
-    const response = await axios.get(`${url}?${params}`, {
-      headers: {
-        'User-Agent': 'ResearchArchive/1.0 (Academic Search Engine)',
-      },
-      timeout: 30000,
-    });
+function dateToIso(date: PubMedDate | undefined): string {
+  if (!date?.Year) return '';
+  return `${date.Year}-${pad(date.Month, '01')}-${pad(date.Day, '01')}`;
+}
 
-    const result: ESearchResult = response.data;
-    return {
-      ids: result.esearchresult.idlist || [],
-      total: parseInt(result.esearchresult.count, 10),
-    };
-  } catch (error) {
-    console.error('PubMed search error:', error);
-    throw new Error('Failed to search PubMed');
+function pickPubDate(article: PubMedArticle): string {
+  const articleDate = article.MedlineCitation.Article.ArticleDate;
+  if (articleDate) {
+    const first = Array.isArray(articleDate) ? articleDate[0] : articleDate;
+    const iso = dateToIso(first);
+    if (iso) return iso;
   }
-}
-
-/**
- * Fetch full article details from PubMed
- */
-async function fetchPubMedArticles(ids: string[]): Promise<PubMedArticle[]> {
-  if (ids.length === 0) return [];
-
-  const url = `${EUTILS_BASE}/efetch.fcgi`;
-  const params = new URLSearchParams({
-    db: 'pubmed',
-    id: ids.join(','),
-    retmode: 'xml',
-    rettype: 'abstract',
-  });
-
-  try {
-    const response = await axios.get(`${url}?${params}`, {
-      headers: {
-        'User-Agent': 'ResearchArchive/1.0 (Academic Search Engine)',
-      },
-      timeout: 30000,
-    });
-
-    // Parse XML response
-    const { XMLParser } = await import('fast-xml-parser');
-    const parser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: '@_',
-    });
-
-    const result: EFetchResult = parser.parse(response.data);
-
-    if (!result.PubmedArticleSet?.PubmedArticle) {
-      return [];
-    }
-
-    const articles = result.PubmedArticleSet.PubmedArticle;
-    return Array.isArray(articles) ? articles : [articles];
-  } catch (error) {
-    console.error('PubMed fetch error:', error);
-    throw new Error('Failed to fetch PubMed articles');
+  const journalDate = article.MedlineCitation.Article.Journal?.JournalIssue?.PubDate;
+  if (journalDate) {
+    const iso = dateToIso(journalDate);
+    if (iso) return iso;
   }
+  const history = article.PubmedData?.History?.PubMedPubDate;
+  if (history) {
+    const list = Array.isArray(history) ? history : [history];
+    const pub = list.find(d => d['@_PubStatus'] === 'pubmed') || list[0];
+    return dateToIso(pub);
+  }
+  return '';
 }
 
-/**
- * Convert PubMed article to Paper format
- */
-function articleToPaper(article: PubMedArticle): Paper {
+function pickText(value: string | { '#text': string } | undefined): string {
+  if (!value) return '';
+  return typeof value === 'string' ? value : value['#text'];
+}
+
+function articleToPaper(article: PubMedArticle, citations: number = 0): Paper {
   const citation = article.MedlineCitation;
   const pubdata = article.PubmedData;
 
-  // Get PMID
-  const pmid = typeof citation.PMID === 'string'
-    ? citation.PMID
-    : citation.PMID['#text'];
+  const pmid = typeof citation.PMID === 'string' ? citation.PMID : citation.PMID['#text'];
 
-  // Get DOI
   let doi: string | undefined;
-  if (pubdata?.ArticleIdList?.ArticleId) {
-    const articleIds = Array.isArray(pubdata.ArticleIdList.ArticleId)
-      ? pubdata.ArticleIdList.ArticleId
-      : [pubdata.ArticleIdList.ArticleId];
-    const doiEntry = articleIds.find(id => id['@_IdType'] === 'doi');
-    doi = doiEntry?.['#text'];
+  const articleIds = pubdata?.ArticleIdList?.ArticleId;
+  if (articleIds) {
+    const list = Array.isArray(articleIds) ? articleIds : [articleIds];
+    doi = list.find(id => id['@_IdType'] === 'doi')?.['#text'];
+  }
+  if (!doi) {
+    const eloc = citation.Article.ELocationID;
+    if (eloc) {
+      const list = Array.isArray(eloc) ? eloc : [eloc];
+      doi = list.find(e => e['@_EIdType'] === 'doi')?.['#text'];
+    }
   }
 
-  // Get authors
-  const authorList = citation.Article.AuthorList?.Author;
-  const authors = authorList
-    ? (Array.isArray(authorList) ? authorList : [authorList])
-        .filter(a => a.LastName)
-        .map(a => ({
-          name: `${a.ForeName || ''} ${a.LastName || ''}`.trim(),
-          affiliation: a.AffiliationInfo?.[0]?.Affiliation,
-        }))
+  const authorRaw = citation.Article.AuthorList?.Author;
+  const authors = authorRaw
+    ? (Array.isArray(authorRaw) ? authorRaw : [authorRaw])
+        .map(a => {
+          if (a.CollectiveName) return { name: a.CollectiveName };
+          const name = `${a.ForeName || a.Initials || ''} ${a.LastName || ''}`.trim();
+          if (!name) return null;
+          const aff = a.AffiliationInfo;
+          const affList = aff ? (Array.isArray(aff) ? aff : [aff]) : [];
+          return { name, affiliation: affList[0]?.Affiliation };
+        })
+        .filter((x): x is { name: string; affiliation?: string } => Boolean(x))
     : [];
 
-  // Get abstract
   let abstract = '';
   const abstractData = citation.Article.Abstract?.AbstractText;
   if (abstractData) {
-    if (typeof abstractData === 'string') {
-      abstract = abstractData;
-    } else if (Array.isArray(abstractData)) {
-      abstract = abstractData.map(t => typeof t === 'string' ? t : t['#text']).join(' ');
-    } else if (typeof abstractData === 'object' && '#text' in abstractData) {
-      abstract = abstractData['#text'];
-    }
+    const list = Array.isArray(abstractData) ? abstractData : [abstractData];
+    abstract = list
+      .map(part => {
+        if (typeof part === 'string') return part;
+        const label = part['@_Label'] ? `${part['@_Label']}: ` : '';
+        return label + part['#text'];
+      })
+      .filter(Boolean)
+      .join(' ');
   }
 
-  // Get date
-  let date = '';
-  const pubDate = pubdata?.History?.PubMedPubDate?.find(
-    d => d['@_PubStatus'] === 'pubmed'
-  );
-  if (pubDate) {
-    const y = String(pubDate.Year);
-    const m = String(pubDate.Month).padStart(2, '0');
-    const d = String(pubDate.Day).padStart(2, '0');
-    date = `${y}-${m}-${d}`;
-  } else if (citation.DateRevised) {
-    const dr = citation.DateRevised;
-    const y = String(dr.Year);
-    const m = String(dr.Month).padStart(2, '0');
-    const d = String(dr.Day).padStart(2, '0');
-    date = `${y}-${m}-${d}`;
-  }
-  
-  // Get keywords from MeSH terms
-  const keywords = citation.MeshHeadingList?.MeshHeading?.map(
-    mh => mh.DescriptorName['#text']
-  ) || [];
+  const meshKeywords =
+    citation.MeshHeadingList?.MeshHeading?.map(mh => pickText(mh.DescriptorName)).filter(Boolean) || [];
+  const userKeywords = citation.KeywordList?.Keyword
+    ? (Array.isArray(citation.KeywordList.Keyword) ? citation.KeywordList.Keyword : [citation.KeywordList.Keyword])
+        .map(pickText)
+        .filter(Boolean)
+    : [];
 
   return {
     id: generatePaperId('pubmed', pmid),
-    title: cleanHtml(citation.Article.ArticleTitle),
+    title: cleanHtml(pickText(citation.Article.ArticleTitle)),
     authors,
     abstract: cleanHtml(abstract),
-    date,
+    date: pickPubDate(article),
     source: 'pubmed',
-    externalIds: {
-      pmid,
-      doi,
-    },
-    citations: 0, // PubMed doesn't provide citation counts directly
-    accessType: 'open', // Most PubMed abstracts are open
+    externalIds: { pmid, doi },
+    citations,
+    accessType: 'open',
     url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
+    pdfUrl: doi ? `https://doi.org/${doi}` : undefined,
     journal: citation.Article.Journal?.Title || citation.Article.Journal?.ISOAbbreviation,
-    keywords,
-    discipline: 'biomedicine',
+    keywords: [...new Set([...userKeywords, ...meshKeywords])].slice(0, 10),
+    discipline: 'Medicine',
   };
 }
 
-/**
- * Search PubMed for papers
- */
-export async function searchPubMed(
+function appendApiKey(params: URLSearchParams): URLSearchParams {
+  if (API_KEY) params.set('api_key', API_KEY);
+  return params;
+}
+
+async function searchPubMedIds(
   query: string,
-  options: {
-    start?: number;
-    maxResults?: number;
-  } = {}
-): Promise<{ papers: Paper[]; total: number }> {
-  const { start = 0, maxResults = 20 } = options;
+  retstart: number,
+  retmax: number
+): Promise<{ ids: string[]; total: number }> {
+  const params = appendApiKey(
+    new URLSearchParams({
+      db: 'pubmed',
+      term: query,
+      retstart: String(retstart),
+      retmax: String(retmax),
+      retmode: 'json',
+      sort: 'relevance',
+    })
+  );
 
+  const response = await httpGet<ESearchResult>(`${EUTILS_BASE}/esearch.fcgi?${params}`);
+  return {
+    ids: response.data.esearchresult.idlist || [],
+    total: parseInt(response.data.esearchresult.count, 10) || 0,
+  };
+}
+
+async function fetchPubMedArticles(ids: string[]): Promise<PubMedArticle[]> {
+  if (ids.length === 0) return [];
+  const params = appendApiKey(
+    new URLSearchParams({
+      db: 'pubmed',
+      id: ids.join(','),
+      retmode: 'xml',
+      rettype: 'abstract',
+    })
+  );
+
+  const response = await httpGet<string>(`${EUTILS_BASE}/efetch.fcgi?${params}`, {
+    headers: { Accept: 'application/xml' },
+    responseType: 'text',
+  });
+
+  const result: EFetchResult = parser.parse(response.data);
+  const articles = result.PubmedArticleSet?.PubmedArticle;
+  if (!articles) return [];
+  return Array.isArray(articles) ? articles : [articles];
+}
+
+async function fetchCitationCounts(ids: string[]): Promise<Map<string, number>> {
+  if (ids.length === 0) return new Map();
   try {
-    // First get IDs
-    const { ids, total } = await searchPubMedIds(query, {
-      retstart: start,
-      retmax: maxResults,
-    });
-
-    if (ids.length === 0) {
-      return { papers: [], total: 0 };
+    const response = await httpGet<{ data: { pmid: number; citation_count: number }[] }>(
+      `${ICITE_BASE}?pmids=${ids.join(',')}&fl=pmid,citation_count`,
+      { timeout: 8000, retries: 0 }
+    );
+    const map = new Map<string, number>();
+    for (const item of response.data.data || []) {
+      map.set(String(item.pmid), item.citation_count || 0);
     }
-
-    // Then fetch full articles
-    const articles = await fetchPubMedArticles(ids);
-    const papers = articles.map(articleToPaper);
-
-    return { papers, total };
-  } catch (error) {
-    console.error('PubMed search error:', error);
-    throw new Error('Failed to search PubMed');
+    return map;
+  } catch {
+    return new Map();
   }
 }
 
-/**
- * Get a specific paper from PubMed by PMID
- */
+export async function searchPubMed(
+  query: string,
+  options: { start?: number; maxResults?: number } = {}
+): Promise<{ papers: Paper[]; total: number }> {
+  const { start = 0, maxResults = 20 } = options;
+  const { ids, total } = await searchPubMedIds(query, start, maxResults);
+  if (ids.length === 0) return { papers: [], total: 0 };
+
+  const [articles, citations] = await Promise.all([fetchPubMedArticles(ids), fetchCitationCounts(ids)]);
+  const papers = articles.map(article => {
+    const pmid = typeof article.MedlineCitation.PMID === 'string'
+      ? article.MedlineCitation.PMID
+      : article.MedlineCitation.PMID['#text'];
+    return articleToPaper(article, citations.get(pmid) || 0);
+  });
+  return { papers, total };
+}
+
 export async function getPubMedPaper(pmid: string): Promise<Paper | null> {
   try {
-    const articles = await fetchPubMedArticles([pmid]);
+    const [articles, citations] = await Promise.all([fetchPubMedArticles([pmid]), fetchCitationCounts([pmid])]);
     if (articles.length === 0) return null;
-    return articleToPaper(articles[0]);
+    return articleToPaper(articles[0], citations.get(pmid) || 0);
   } catch (error) {
-    console.error('PubMed fetch error:', error);
+    console.error('PubMed getPaper error:', error);
     return null;
   }
 }

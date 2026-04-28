@@ -1,216 +1,252 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import SearchBar from '@/components/SearchBar';
 import PaperCard from '@/components/PaperCard';
-import FilterSidebar, { FilterState } from '@/components/FilterSidebar';
+import FilterSidebar, { FilterState, defaultFilters } from '@/components/FilterSidebar';
 import Pagination from '@/components/Pagination';
 import { SearchResultsSkeleton } from '@/components/Loading';
-import type { Paper, SearchResult } from '@/lib/types';
+import { useToast } from '@/components/Toast';
+import { toggleSavedPaper, useSavedIds } from '@/lib/saved-papers';
+import type { Paper, PaperSource, SearchResult } from '@/lib/types';
+
+function getDateRange(range: FilterState['dateRange']): { from: string; to: string } | undefined {
+  if (range === 'all') return undefined;
+  const now = new Date();
+  const to = now.toISOString().split('T')[0];
+  let fromMs: number;
+  switch (range) {
+    case 'week': fromMs = now.getTime() - 7 * 86400000; break;
+    case 'month': fromMs = now.getTime() - 30 * 86400000; break;
+    case 'year': fromMs = now.getTime() - 365 * 86400000; break;
+    default: return undefined;
+  }
+  return { from: new Date(fromMs).toISOString().split('T')[0], to };
+}
+
+function paramsToFilters(sp: URLSearchParams): FilterState {
+  const sources = sp.get('sources')?.split(',').filter(Boolean) as PaperSource[] | undefined;
+  return {
+    sources: sources?.length ? sources : defaultFilters.sources,
+    accessType: (sp.get('access') as 'open' | 'any') || defaultFilters.accessType,
+    dateRange: (sp.get('range') as FilterState['dateRange']) || defaultFilters.dateRange,
+    citationMin: parseInt(sp.get('citationMin') || '0', 10) || 0,
+    discipline: sp.get('discipline') || '',
+    sort: (sp.get('sort') as FilterState['sort']) || defaultFilters.sort,
+  };
+}
+
+function filtersToParams(query: string, page: number, filters: FilterState): URLSearchParams {
+  const params = new URLSearchParams();
+  params.set('q', query);
+  if (page > 1) params.set('page', String(page));
+  if (filters.sort !== defaultFilters.sort) params.set('sort', filters.sort);
+  if (filters.accessType !== defaultFilters.accessType) params.set('access', filters.accessType);
+  if (filters.dateRange !== defaultFilters.dateRange) params.set('range', filters.dateRange);
+  if (filters.citationMin > 0) params.set('citationMin', String(filters.citationMin));
+  if (filters.discipline) params.set('discipline', filters.discipline);
+  if (filters.sources.length < defaultFilters.sources.length) {
+    params.set('sources', filters.sources.join(','));
+  }
+  return params;
+}
 
 function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
+  const { addToast, ToastContainer } = useToast();
 
-  const [query, setQuery] = useState(searchParams.get('q') || '');
+  const query = searchParams.get('q') || '';
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const filters = useMemo(() => paramsToFilters(searchParams), [searchParams]);
+
   const [results, setResults] = useState<SearchResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [savedPapers, setSavedPapers] = useState<Set<string>>(new Set());
+  const [lastQuery, setLastQuery] = useState(query);
+  const savedIds = useSavedIds();
 
-  const [filters, setFilters] = useState<FilterState>({
-    sources: ['arxiv', 'pubmed', 'crossref', 'openalex'],
-    accessType: 'any',
-    dateRange: 'all',
-    citationMin: 0,
-    discipline: '',
-    sort: 'relevance',
-  });
-
-  const currentPage = parseInt(searchParams.get('page') || '1', 10);
+  if (query !== lastQuery) {
+    setLastQuery(query);
+    if (!query.trim()) {
+      setResults(null);
+      setError('');
+    }
+  }
 
   useEffect(() => {
-    const saved = localStorage.getItem('savedPapers');
-    if (saved) {
-      try {
-        const papers = JSON.parse(saved);
-        setSavedPapers(new Set(papers.map((p: { paper: Paper }) => p.paper.id)));
-      } catch { /* ignore */ }
-    }
-  }, []);
+    if (!query.trim()) return;
+    let cancelled = false;
+    const controller = new AbortController();
 
-  const performSearch = useCallback(async (q: string, page: number, f: FilterState) => {
-    if (!q.trim()) { setResults(null); return; }
-    setIsLoading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: q, page, limit: 20,
-          sources: f.sources, accessType: f.accessType,
-          sort: f.sort,
-          citationMin: f.citationMin > 0 ? f.citationMin : undefined,
-          dateRange: getDateRange(f.dateRange),
-        }),
+    // Defer the synchronous state-update to a microtask so React can batch with the fetch
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setIsLoading(true);
+      setError('');
+    });
+
+    const body = {
+      query,
+      page,
+      limit: 20,
+      sources: filters.sources,
+      accessType: filters.accessType,
+      sort: filters.sort,
+      citationMin: filters.citationMin > 0 ? filters.citationMin : undefined,
+      discipline: filters.discipline || undefined,
+      dateRange: getDateRange(filters.dateRange),
+    };
+
+    fetch('/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+      .then(async res => {
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Search failed');
+        }
+        return res.json() as Promise<SearchResult>;
+      })
+      .then(data => {
+        if (!cancelled) setResults(data);
+      })
+      .catch(err => {
+        if (cancelled || (err instanceof Error && err.name === 'AbortError')) return;
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        setResults(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
       });
-      if (!res.ok) throw new Error('Search failed');
-      setResults(await res.json());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    const q = searchParams.get('q') || '';
-    setQuery(q);
-    if (q) performSearch(q, currentPage, filters);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, currentPage]);
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [query, page, filters]);
 
-  const handleSearch = (q: string) => {
-    router.push(`/search?q=${encodeURIComponent(q)}`);
-  };
+  const updateUrl = useCallback(
+    (nextQuery: string, nextPage: number, nextFilters: FilterState, options: { scrollTop?: boolean } = {}) => {
+      const params = filtersToParams(nextQuery, nextPage, nextFilters);
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      if (options.scrollTop) window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    [router, pathname]
+  );
 
-  const handleLiveSearch = (q: string) => {
-    if (q.trim()) {
-      router.replace(`/search?q=${encodeURIComponent(q)}`, { scroll: false });
-    }
-  };
-
-  const handleFilterChange = (f: FilterState) => {
-    setFilters(f);
-    if (query) {
-      performSearch(query, 1, f);
-      router.push(`/search?q=${encodeURIComponent(query)}`);
-    }
-  };
-
-  const handlePageChange = (page: number) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('page', page.toString());
-    router.push(`/search?${params.toString()}`);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const handleSearch = (q: string) => updateUrl(q, 1, filters);
+  const handleFilterChange = (next: FilterState) => updateUrl(query, 1, next);
+  const handleResetFilters = () => updateUrl(query, 1, defaultFilters);
+  const handlePageChange = (nextPage: number) => updateUrl(query, nextPage, filters, { scrollTop: true });
 
   const handleSave = (paper: Paper) => {
-    const saved = localStorage.getItem('savedPapers');
-    let papers: { paper: Paper; savedAt: string }[] = [];
-    try { papers = saved ? JSON.parse(saved) : []; } catch { papers = []; }
-
-    const exists = papers.some(p => p.paper.id === paper.id);
-    if (exists) {
-      papers = papers.filter(p => p.paper.id !== paper.id);
-      setSavedPapers(prev => { const n = new Set(prev); n.delete(paper.id); return n; });
-    } else {
-      papers.push({ paper, savedAt: new Date().toISOString() });
-      setSavedPapers(prev => new Set([...prev, paper.id]));
-    }
-    localStorage.setItem('savedPapers', JSON.stringify(papers));
+    const { saved } = toggleSavedPaper(paper);
+    addToast(saved ? 'Added to your library' : 'Removed from library', saved ? 'success' : 'info');
   };
+
+  const showInitialSkeleton = isLoading && !results;
 
   return (
     <div className="container-app pt-24 pb-16">
-      {/* Search bar */}
-      <div className="max-w-3xl mx-auto mb-16 px-4">
-        <div className="relative group">
-          <div className="absolute -inset-1 rounded-[1.8rem] bg-gradient-to-r from-[hsl(var(--accent)/0.2)] to-[hsl(var(--accent)/0.1)] opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-700"></div>
-          <div className="relative bg-[var(--bg-elevated)] rounded-[1.4rem] p-1.5 shadow-2xl border border-[var(--border-primary)]/80">
-            <SearchBar initialQuery={query} onSearch={handleSearch} onLiveSearch={handleLiveSearch} large placeholder="Fast, live discovery..." />
-          </div>
-        </div>
+      <div className="max-w-3xl mx-auto mb-10">
+        <SearchBar initialQuery={query} onSearch={handleSearch} large placeholder="Search papers, authors, or topics…" />
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Sidebar */}
-        <FilterSidebar onFilterChange={handleFilterChange} initialFilters={filters} />
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+        <FilterSidebar filters={filters} onChange={handleFilterChange} onReset={handleResetFilters} />
 
-        {/* Results */}
         <div className="flex-1 min-w-0">
-          {/* Results count */}
-          {results && !isLoading && (
-            <div className="flex items-center justify-between mb-8 pb-5 border-b border-[var(--border-secondary)]/30">
-              <div className="flex flex-col gap-1">
-                <h2 className="text-[14px] font-bold text-[var(--text-primary)] uppercase tracking-widest">
-                  Search Results
-                </h2>
-                <p className="text-[12px] text-[var(--text-tertiary)] font-medium">
-                  Found <span className="text-[var(--text-secondary)] font-bold">{results.total.toLocaleString()}</span> specialized papers 
-                  {results.searchTimeMs && <span className="ml-1 tracking-tight italic">in {results.searchTimeMs}ms</span>}
+          {results && !showInitialSkeleton && (
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-6 pb-4 border-b border-[var(--border-secondary)]">
+              <div>
+                <p className="text-[13px] text-[var(--text-secondary)]">
+                  <span className="font-semibold text-[var(--text-primary)]">{results.total.toLocaleString()}</span>
+                  {' '}results for{' '}
+                  <span className="font-semibold text-[var(--text-primary)]">&ldquo;{query}&rdquo;</span>
+                  <span className="text-[var(--text-tertiary)]"> · {results.searchTimeMs} ms</span>
                 </p>
-              </div>
-              <div className="flex items-center gap-3">
-                {/* Visual indicator of health/status */}
-                <div className="px-3 py-1 rounded-full bg-[var(--success)]/10 border border-[var(--success)]/20 text-[10px] font-bold text-[var(--success)] uppercase tracking-wider flex items-center gap-1.5">
-                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse"></span>
-                   Real-time Live
-                </div>
+                {results.errors && results.errors.length > 0 && (
+                  <p className="text-[12px] text-[var(--warning)] mt-1">
+                    Partial results: {results.errors.map(e => e.source).join(', ')} unavailable
+                  </p>
+                )}
               </div>
             </div>
           )}
 
-          {/* Error */}
           {error && (
-            <div className="card p-4 mb-6 border-[var(--error)]/20 bg-[var(--error)]/5">
+            <div className="p-4 mb-4 rounded-[var(--radius-md)] border border-[var(--error)]/30 bg-[var(--error)]/5">
               <p className="text-[13px] text-[var(--error)] font-medium">{error}</p>
             </div>
           )}
 
-          {/* Loading / Results overlay logic */}
-          <div className={`relative transition-all duration-500 ${isLoading && results ? 'opacity-50 grayscale-[0.5] blur-[1px] pointer-events-none scale-[0.995]' : 'opacity-100'}`}>
-            {/* Full Loader Only if no results yet */}
-            {isLoading && !results && <SearchResultsSkeleton count={5} />}
-
-            {/* Results list */}
-            {!isLoading && results && results.papers.length > 0 && (
-              <div className="space-y-6">
-                {results.papers.map((paper, idx) => (
-                  <div key={paper.id} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${idx * 50}ms` }}>
-                    <PaperCard paper={paper} onSave={handleSave} isSaved={savedPapers.has(paper.id)} />
-                  </div>
-                ))}
+          <div className={`relative transition-opacity duration-200 ${isLoading && results ? 'opacity-60' : 'opacity-100'}`}>
+            {isLoading && results && (
+              <div className="absolute -top-1 left-0 right-0 h-0.5 overflow-hidden">
+                <div className="h-full bg-[hsl(var(--accent))] animate-loading-bar" />
               </div>
             )}
 
-            {/* If loading and we have results, show a subtle progress bar at the top of results */}
-            {isLoading && results && (
-              <div className="absolute top-[-2px] left-0 right-0 h-[2px] overflow-hidden">
-                <div className="h-full bg-[hsl(var(--accent))] animate-loading-bar shadow-[0_0_10px_hsl(var(--accent))]"></div>
+            {showInitialSkeleton && <SearchResultsSkeleton count={5} />}
+
+            {!showInitialSkeleton && results && results.papers.length > 0 && (
+              <div className="space-y-4">
+                {results.papers.map(paper => (
+                  <PaperCard
+                    key={paper.id}
+                    paper={paper}
+                    onSave={handleSave}
+                    isSaved={savedIds.has(paper.id)}
+                  />
+                ))}
               </div>
             )}
           </div>
 
-          {/* Empty */}
-          {!isLoading && results && results.papers.length === 0 && (
+          {!showInitialSkeleton && results && results.papers.length === 0 && (
             <div className="text-center py-20">
-              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[var(--text-tertiary)]">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[var(--text-tertiary)]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
               </div>
               <h3 className="text-heading text-[16px] mb-1">No results found</h3>
-              <p className="text-[13px] text-[var(--text-tertiary)]">Try different keywords or broaden your filters.</p>
+              <p className="text-[13.5px] text-[var(--text-tertiary)] max-w-sm mx-auto">
+                Try broader keywords, fewer filters, or check spelling. The full-text isn&apos;t indexed,
+                so describe what the paper is about, not its title.
+              </p>
             </div>
           )}
 
-          {/* No query */}
-          {!isLoading && !results && !query && (
+          {!query && !isLoading && (
             <div className="text-center py-24">
               <h3 className="text-heading text-[18px] mb-2">Begin your discovery</h3>
-              <p className="text-[14px] text-[var(--text-tertiary)]">Search 250M+ papers across multiple disciplines.</p>
+              <p className="text-[14px] text-[var(--text-tertiary)]">
+                Type a query above or pick a discipline from the homepage.
+              </p>
             </div>
           )}
 
-          {/* Pagination */}
           {results && results.pages > 1 && (
             <div className="mt-10 flex justify-center">
-              <Pagination currentPage={currentPage} totalPages={Math.min(results.pages, 50)} onPageChange={handlePageChange} />
+              <Pagination
+                currentPage={page}
+                totalPages={Math.min(results.pages, 50)}
+                onPageChange={handlePageChange}
+              />
             </div>
           )}
         </div>
       </div>
+
+      <ToastContainer />
     </div>
   );
 }
@@ -221,18 +257,4 @@ export default function SearchPage() {
       <SearchContent />
     </Suspense>
   );
-}
-
-function getDateRange(range: string): { from: string; to: string } | undefined {
-  if (range === 'all') return undefined;
-  const now = new Date();
-  const to = now.toISOString().split('T')[0];
-  let from: Date;
-  switch (range) {
-    case 'week': from = new Date(now.getTime() - 7 * 86400000); break;
-    case 'month': from = new Date(now.getTime() - 30 * 86400000); break;
-    case 'year': from = new Date(now.getTime() - 365 * 86400000); break;
-    default: return undefined;
-  }
-  return { from: from.toISOString().split('T')[0], to };
 }
