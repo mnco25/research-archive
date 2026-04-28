@@ -1,159 +1,200 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import type { Paper } from '@/lib/types';
-import { formatDate, formatNumber, formatAuthors } from '@/lib/utils';
+import { formatNumber, formatAuthors, truncateText } from '@/lib/utils';
 import Badges from './Badges';
 import Citation from './Citation';
-import { useState } from 'react';
 
 interface PaperCardProps {
   paper: Paper;
   onSave?: (paper: Paper) => void;
   isSaved?: boolean;
+  variant?: 'default' | 'compact';
 }
 
-export default function PaperCard({ paper, onSave, isSaved = false }: PaperCardProps) {
+export default function PaperCard({ paper, onSave, isSaved = false, variant = 'default' }: PaperCardProps) {
   const [showCitation, setShowCitation] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
-  const handleSave = (e: React.MouseEvent) => {
+  const isCompact = variant === 'compact';
+
+  const stop = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+  };
+
+  const handleSave = (e: React.MouseEvent) => {
+    stop(e);
     onSave?.(paper);
   };
 
-  const handleShare = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const url = `${window.location.origin}/paper/${paper.id}`;
-    navigator.clipboard.writeText(url);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
+  const handleShare = async (e: React.MouseEvent) => {
+    stop(e);
+    const url = `${window.location.origin}/paper/${encodeURIComponent(paper.id)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 1800);
+    } catch { /* ignore */ }
   };
 
   const toggleCitation = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowCitation(!showCitation);
+    stop(e);
+    setShowCitation(v => !v);
   };
 
+  const year = paper.date ? new Date(paper.date).getFullYear() : null;
+  const authorLabel = formatAuthors(paper.authors, isCompact ? 1 : 3);
+  const remainingAuthors = Math.max(0, paper.authors.length - (isCompact ? 1 : 3));
+
   return (
-    <article className="group relative flex flex-col h-full min-w-0 p-6 md:p-8 rounded-[2.5rem] bg-[var(--bg-elevated)]/30 backdrop-blur-xl border border-[var(--border-primary)]/40 hover:border-[hsl(var(--accent)/0.5)] shadow-sm hover:shadow-[0_20px_60px_rgba(0,0,0,0.18)] transition-all duration-700 overflow-hidden active:scale-[0.99] transform-gpu">
-      {/* Cinematic Ambient Glow - More dynamic on hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(var(--accent)/0.08)] via-transparent to-[hsl(280,80%,65%/0.05)] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none"></div>
-      
-      {/* Animated corner accent */}
-      <div className="absolute -top-12 -right-12 w-24 h-24 bg-[hsl(var(--accent)/0.15)] blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-full"></div>
-
-      <div className="relative z-10 flex flex-col flex-1">
-        {/* Top row: badges + save */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <Badges paper={paper} />
-          </div>
+    <article className={`group relative flex flex-col h-full min-w-0 rounded-[var(--radius-xl)] bg-[var(--bg-elevated)] border border-[var(--border-primary)] hover:border-[var(--text-tertiary)] transition-colors duration-200 overflow-hidden ${
+      isCompact ? 'p-4' : 'p-5 md:p-6'
+    }`}>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+          <Badges paper={paper} />
+        </div>
+        <div className="flex items-center -mr-1.5 -mt-1.5 shrink-0">
+          <button
+            onClick={handleShare}
+            className="p-1.5 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            aria-label={isCopied ? 'Link copied' : 'Copy link'}
+            title={isCopied ? 'Copied' : 'Copy link'}
+            type="button"
+          >
+            {isCopied ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+            )}
+          </button>
+          <button
+            onClick={toggleCitation}
+            className={`p-1.5 rounded-full transition-colors ${
+              showCitation
+                ? 'text-[hsl(var(--accent))] bg-[hsl(var(--accent)/0.1)]'
+                : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+            }`}
+            aria-label={showCitation ? 'Hide citation' : 'Show citation'}
+            aria-expanded={showCitation}
+            title="Cite"
+            type="button"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" />
+              <path d="M9 10h.01M15 10h.01" />
+            </svg>
+          </button>
           {onSave && (
-            <div className="flex items-center gap-1.5 ml-2">
-              <button
-                onClick={handleShare}
-                className="p-2 rounded-full text-[var(--text-placeholder)] hover:text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent)/0.1)] transition-all duration-300"
-                title="Copy Link"
-              >
-                {isCopied ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
-                )}
-              </button>
-              <button
-                onClick={toggleCitation}
-                className={`p-2 rounded-full transition-all duration-300 ${showCitation ? 'text-[hsl(var(--accent))] bg-[hsl(var(--accent)/0.1)]' : 'text-[var(--text-placeholder)] hover:text-[hsl(var(--accent))] hover:bg-[hsl(var(--accent)/0.1)]'}`}
-                title="Cite Paper"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" /><path d="M9 10h.01" /><path d="M15 10h.01" /></svg>
-              </button>
-              <button
-                onClick={handleSave}
-                className={`
-                  p-2 rounded-full transition-all duration-300
-                  ${isSaved
-                    ? 'text-[hsl(var(--accent))] bg-[hsl(var(--accent)/0.1)]'
-                    : 'text-[var(--text-placeholder)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
-                  }
-                `}
-                aria-label={isSaved ? 'Remove from saved' : 'Save paper'}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                </svg>
-              </button>
-            </div>
+            <button
+              onClick={handleSave}
+              className={`p-1.5 rounded-full transition-colors ${
+                isSaved
+                  ? 'text-[hsl(var(--accent))] bg-[hsl(var(--accent)/0.1)]'
+                  : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+              }`}
+              aria-label={isSaved ? 'Remove from library' : 'Save to library'}
+              aria-pressed={isSaved}
+              title={isSaved ? 'Saved' : 'Save'}
+              type="button"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+            </button>
           )}
         </div>
+      </div>
 
-        {/* Title */}
-        <Link href={`/paper/${encodeURIComponent(paper.id)}`} className="block mb-2.5">
-          <h3 className="text-display text-[17px] md:text-[19px] leading-[1.3] tracking-tight text-[var(--text-primary)] line-clamp-3 group-hover:text-[hsl(var(--accent))] transition-colors duration-300">
-            {paper.title}
-          </h3>
-        </Link>
+      <Link
+        href={`/paper/${encodeURIComponent(paper.id)}`}
+        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent))] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] rounded-md"
+      >
+        <h3 className={`font-semibold tracking-tight text-[var(--text-primary)] group-hover:text-[hsl(var(--accent))] transition-colors leading-snug line-clamp-3 ${
+          isCompact ? 'text-[15px] mb-2' : 'text-[17px] mb-2.5'
+        }`}>
+          {paper.title}
+        </h3>
+      </Link>
 
-        {/* Authors - Interactive style */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-4">
-          <p className="text-[14px] font-semibold text-[var(--text-secondary)] truncate">
-            {formatAuthors(paper.authors, 2)}
-          </p>
-          {paper.authors.length > 2 && (
-            <span className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] font-bold uppercase tracking-wider">
-              +{paper.authors.length - 2} more
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-3">
+        <p className="text-[13px] font-medium text-[var(--text-secondary)] truncate max-w-full">{authorLabel}</p>
+        {remainingAuthors > 0 && (
+          <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] font-medium">
+            +{remainingAuthors}
+          </span>
+        )}
+      </div>
+
+      {!showCitation && paper.abstract && !isCompact && (
+        <p className="text-[13.5px] text-[var(--text-secondary)] leading-relaxed line-clamp-3 mb-4">
+          {truncateText(paper.abstract, 360)}
+        </p>
+      )}
+
+      {showCitation && (
+        <div className="mb-4 animate-fade">
+          <Citation paper={paper} />
+        </div>
+      )}
+
+      <div className="flex-1" />
+
+      <div className="flex items-center justify-between gap-3 mt-2 pt-3 border-t border-[var(--border-secondary)]">
+        <div className="flex items-center gap-2 text-[12px] font-medium text-[var(--text-tertiary)] min-w-0 overflow-hidden">
+          {year && (
+            <span className="inline-flex items-center gap-1">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              {year}
             </span>
           )}
-        </div>
-
-        {/* Abstract */}
-        {paper.abstract && (
-          <p className={`text-[14px] text-[var(--text-tertiary)] leading-relaxed line-clamp-3 mb-6 font-medium group-hover:text-[var(--text-secondary)] transition-colors duration-500 ${showCitation ? 'opacity-0 h-0 overflow-hidden mb-0' : 'opacity-100'}`}>
-            {paper.abstract}
-          </p>
-        )}
-
-        {/* In-card Citation tools */}
-        {showCitation && (
-          <div className="mb-6 animate-in slide-in-from-top-2 fade-in duration-300">
-            <Citation paper={paper} />
-          </div>
-        )}
-
-        <div className="flex-1" />
-
-        {/* Footer meta */}
-        <div className="flex items-center justify-between mt-auto pt-5 border-t border-[var(--border-secondary)]/30 group-hover:border-[var(--border-secondary)] transition-colors duration-500">
-          <div className="flex items-center gap-4 text-[12px] font-bold tracking-tight text-[var(--text-tertiary)] uppercase whitespace-nowrap overflow-hidden">
-            <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--bg-tertiary)]/50 group-hover:bg-[var(--bg-tertiary)] transition-colors">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect width="18" height="18" x="3" y="4" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
-              {new Date(paper.date).getFullYear()}
+          {paper.citations > 0 && (
+            <span className="inline-flex items-center gap-1 text-[hsl(var(--accent))]">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" />
+              </svg>
+              {formatNumber(paper.citations)}
             </span>
-            {paper.citations > 0 && (
-              <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[hsl(var(--accent)/0.05)] text-[hsl(var(--accent))] transition-all">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21" /></svg>
-                {formatNumber(paper.citations)}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {paper.pdfUrl && (
-              <a
-                href={paper.pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="h-9 px-4 rounded-[1.2rem] border border-[var(--border-primary)] text-[11px] font-extrabold tracking-widest uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]/40 flex items-center gap-2 transition-all duration-300 active:scale-95 group/pdf"
-              >
-                PDF
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="group-hover/pdf:translate-x-0.5 group-hover/pdf:-translate-y-0.5 transition-transform duration-300"><path d="M7 17L17 7M17 7H7M17 7V17" /></svg>
-              </a>
-            )}
-          </div>
+          )}
+          {paper.journal && !isCompact && (
+            <span className="truncate text-[var(--text-tertiary)]">· {paper.journal}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {paper.pdfUrl && (
+            <a
+              href={paper.pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="text-[11px] font-semibold tracking-wider uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center gap-1 transition-colors"
+            >
+              PDF
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 17L17 7M17 7H7M17 7V17" />
+              </svg>
+            </a>
+          )}
+          <Link
+            href={`/paper/${encodeURIComponent(paper.id)}`}
+            className="text-[11px] font-semibold tracking-wider uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center gap-1 transition-colors"
+          >
+            Read
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </Link>
         </div>
       </div>
     </article>

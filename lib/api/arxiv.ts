@@ -1,99 +1,125 @@
-import axios from 'axios';
 import { XMLParser } from 'fast-xml-parser';
 import type { Paper } from '@/lib/types';
-import { sleep, cleanHtml, generatePaperId } from '@/lib/utils';
+import { cleanHtml, generatePaperId, sleep } from '@/lib/utils';
+import { httpGet } from '@/lib/http';
 
 const ARXIV_API_BASE = 'https://export.arxiv.org/api/query';
-const RATE_LIMIT_MS = 3000; // 1 request per 3 seconds
+const RATE_LIMIT_MS = 3000;
 
-let lastRequestTime = 0;
+let lastRequestAt = 0;
+let pendingRateLimit: Promise<void> = Promise.resolve();
+
+interface ArxivLink {
+  '@_href': string;
+  '@_type'?: string;
+  '@_title'?: string;
+}
 
 interface ArxivEntry {
   id: string;
   title: string;
   summary: string;
-  author: { name: string } | { name: string }[];
+  author: { name: string; 'arxiv:affiliation'?: string } | { name: string; 'arxiv:affiliation'?: string }[];
   published: string;
   updated?: string;
   'arxiv:primary_category'?: { '@_term': string };
   category?: { '@_term': string } | { '@_term': string }[];
-  link?: { '@_href': string; '@_type'?: string; '@_title'?: string } | { '@_href': string; '@_type'?: string; '@_title'?: string }[];
-  'arxiv:doi'?: string;
+  link?: ArxivLink | ArxivLink[];
+  'arxiv:doi'?: string | { '#text': string };
+  'arxiv:journal_ref'?: string;
 }
 
 interface ArxivResponse {
   feed: {
     entry?: ArxivEntry | ArxivEntry[];
-    'opensearch:totalResults'?: string;
+    'opensearch:totalResults'?: string | number | { '#text': string };
     'opensearch:startIndex'?: string;
   };
 }
 
-/**
- * Ensure we don't exceed rate limits
- */
-async function rateLimitedRequest(): Promise<void> {
-  const now = Date.now();
-  const timeSinceLastRequest = now - lastRequestTime;
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  parseTagValue: false,
+  trimValues: true,
+});
 
-  if (timeSinceLastRequest < RATE_LIMIT_MS) {
-    await sleep(RATE_LIMIT_MS - timeSinceLastRequest);
-  }
-
-  lastRequestTime = Date.now();
+async function rateLimit(): Promise<void> {
+  pendingRateLimit = pendingRateLimit.then(async () => {
+    const elapsed = Date.now() - lastRequestAt;
+    if (elapsed < RATE_LIMIT_MS) await sleep(RATE_LIMIT_MS - elapsed);
+    lastRequestAt = Date.now();
+  });
+  return pendingRateLimit;
 }
 
-/**
- * Parse arXiv ID from full URL
- */
 function parseArxivId(url: string): string {
-  const match = url.match(/abs\/(.+)$/);
-  return match ? match[1] : url;
+  const match = url.match(/abs\/(.+?)(v\d+)?$/);
+  if (match) return match[1];
+  const fallback = url.match(/abs\/(.+)$/);
+  return fallback ? fallback[1] : url;
 }
 
-/**
- * Convert arXiv entry to Paper format
- */
+function extractDoi(value: ArxivEntry['arxiv:doi']): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') return value;
+  return value['#text'];
+}
+
+function extractTotal(raw: ArxivResponse['feed']['opensearch:totalResults']): number {
+  if (raw == null) return 0;
+  if (typeof raw === 'number') return raw;
+  if (typeof raw === 'string') return parseInt(raw, 10) || 0;
+  return parseInt(raw['#text'] || '0', 10) || 0;
+}
+
 function entryToPaper(entry: ArxivEntry): Paper {
   const arxivId = parseArxivId(entry.id);
-  const authors = Array.isArray(entry.author)
-    ? entry.author.map(a => ({ name: a.name }))
-    : [{ name: entry.author.name }];
+  const authors = (Array.isArray(entry.author) ? entry.author : [entry.author])
+    .filter(Boolean)
+    .map(a => ({ name: a.name, affiliation: a['arxiv:affiliation'] }));
 
-  // Find PDF link
   let pdfUrl: string | undefined;
   if (entry.link) {
     const links = Array.isArray(entry.link) ? entry.link : [entry.link];
-    const pdfLink = links.find(l => l['@_title'] === 'pdf' || l['@_href']?.includes('/pdf/'));
+    const pdfLink = links.find(l => l['@_title'] === 'pdf' || l['@_type'] === 'application/pdf');
     pdfUrl = pdfLink?.['@_href'];
   }
 
-  // Get primary category
-  const primaryCategory = entry['arxiv:primary_category']?.['@_term'] || 'unknown';
+  const primaryCategory = entry['arxiv:primary_category']?.['@_term'];
 
   return {
     id: generatePaperId('arxiv', arxivId),
-    title: cleanHtml(entry.title.replace(/\n/g, ' ').trim()),
+    title: cleanHtml(entry.title.replace(/\s+/g, ' ').trim()),
     authors,
-    abstract: cleanHtml(entry.summary.replace(/\n/g, ' ').trim()),
+    abstract: cleanHtml(entry.summary.replace(/\s+/g, ' ').trim()),
     date: entry.published,
     source: 'arxiv',
     externalIds: {
       arxivId,
-      doi: entry['arxiv:doi'] || undefined,
+      doi: extractDoi(entry['arxiv:doi']),
     },
-    citations: 0, // arXiv doesn't provide citation counts
+    citations: 0,
     accessType: 'open',
-    url: entry.id,
-    pdfUrl: pdfUrl || `https://arxiv.org/pdf/${arxivId}.pdf`,
+    url: entry.id.replace('http://', 'https://'),
+    pdfUrl: pdfUrl?.replace('http://', 'https://') || `https://arxiv.org/pdf/${arxivId}.pdf`,
+    journal: entry['arxiv:journal_ref'],
     discipline: primaryCategory,
     keywords: [],
   };
 }
 
-/**
- * Search arXiv for papers
- */
+function buildQuery(query: string, start: number, max: number, sortBy: string, sortOrder: string): string {
+  const params = new URLSearchParams({
+    search_query: `all:${query}`,
+    start: String(start),
+    max_results: String(max),
+    sortBy,
+    sortOrder,
+  });
+  return `${ARXIV_API_BASE}?${params}`;
+}
+
 export async function searchArxiv(
   query: string,
   options: {
@@ -103,136 +129,40 @@ export async function searchArxiv(
     sortOrder?: 'ascending' | 'descending';
   } = {}
 ): Promise<{ papers: Paper[]; total: number }> {
-  const {
-    start = 0,
-    maxResults = 20,
-    sortBy = 'relevance',
-    sortOrder = 'descending',
-  } = options;
+  const { start = 0, maxResults = 20, sortBy = 'relevance', sortOrder = 'descending' } = options;
+  await rateLimit();
 
-  await rateLimitedRequest();
+  const url = buildQuery(query, start, Math.min(maxResults, 100), sortBy, sortOrder);
+  const response = await httpGet<string>(url, {
+    headers: { Accept: 'application/atom+xml' },
+    responseType: 'text',
+  });
 
-  // Build search query
-  const searchQuery = encodeURIComponent(query);
-  const url = `${ARXIV_API_BASE}?search_query=all:${searchQuery}&start=${start}&max_results=${maxResults}&sortBy=${sortBy}&sortOrder=${sortOrder}`;
+  const result: ArxivResponse = parser.parse(response.data);
+  if (!result.feed?.entry) return { papers: [], total: 0 };
 
-  try {
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent': 'ResearchArchive/1.0 (Academic Search Engine)',
-      },
-      timeout: 30000,
-    });
-
-    const parser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: '@_',
-    });
-
-    const result: ArxivResponse = parser.parse(response.data);
-
-    // Handle empty results
-    if (!result.feed.entry) {
-      return { papers: [], total: 0 };
-    }
-
-    const entries = Array.isArray(result.feed.entry)
-      ? result.feed.entry
-      : [result.feed.entry];
-
-    const papers = entries.map(entryToPaper);
-    const total = parseInt(result.feed['opensearch:totalResults'] || '0', 10);
-
-    return { papers, total };
-  } catch (error) {
-    console.error('arXiv API error:', error);
-    throw new Error('Failed to search arXiv');
-  }
+  const entries = Array.isArray(result.feed.entry) ? result.feed.entry : [result.feed.entry];
+  return {
+    papers: entries.map(entryToPaper),
+    total: extractTotal(result.feed['opensearch:totalResults']),
+  };
 }
 
-/**
- * Get a specific paper from arXiv by ID
- */
 export async function getArxivPaper(arxivId: string): Promise<Paper | null> {
-  await rateLimitedRequest();
-
-  const url = `${ARXIV_API_BASE}?id_list=${arxivId}`;
+  await rateLimit();
+  const url = `${ARXIV_API_BASE}?id_list=${encodeURIComponent(arxivId)}`;
 
   try {
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent': 'ResearchArchive/1.0 (Academic Search Engine)',
-      },
-      timeout: 30000,
+    const response = await httpGet<string>(url, {
+      headers: { Accept: 'application/atom+xml' },
+      responseType: 'text',
     });
-
-    const parser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: '@_',
-    });
-
     const result: ArxivResponse = parser.parse(response.data);
-
-    if (!result.feed.entry) {
-      return null;
-    }
-
-    const entry = Array.isArray(result.feed.entry)
-      ? result.feed.entry[0]
-      : result.feed.entry;
-
+    if (!result.feed?.entry) return null;
+    const entry = Array.isArray(result.feed.entry) ? result.feed.entry[0] : result.feed.entry;
     return entryToPaper(entry);
   } catch (error) {
-    console.error('arXiv API error:', error);
+    console.error('arXiv getPaper error:', error);
     return null;
-  }
-}
-
-/**
- * Search arXiv by category
- */
-export async function searchArxivByCategory(
-  category: string,
-  options: {
-    start?: number;
-    maxResults?: number;
-  } = {}
-): Promise<{ papers: Paper[]; total: number }> {
-  const { start = 0, maxResults = 20 } = options;
-
-  await rateLimitedRequest();
-
-  const url = `${ARXIV_API_BASE}?search_query=cat:${category}&start=${start}&max_results=${maxResults}&sortBy=submittedDate&sortOrder=descending`;
-
-  try {
-    const response = await axios.get(url, {
-      headers: {
-        'User-Agent': 'ResearchArchive/1.0 (Academic Search Engine)',
-      },
-      timeout: 30000,
-    });
-
-    const parser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: '@_',
-    });
-
-    const result: ArxivResponse = parser.parse(response.data);
-
-    if (!result.feed.entry) {
-      return { papers: [], total: 0 };
-    }
-
-    const entries = Array.isArray(result.feed.entry)
-      ? result.feed.entry
-      : [result.feed.entry];
-
-    const papers = entries.map(entryToPaper);
-    const total = parseInt(result.feed['opensearch:totalResults'] || '0', 10);
-
-    return { papers, total };
-  } catch (error) {
-    console.error('arXiv API error:', error);
-    throw new Error('Failed to search arXiv by category');
   }
 }

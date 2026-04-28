@@ -1,196 +1,175 @@
 # ResearchArchive
 
-**Find the research you need. Faster.**
+**Find research that actually moves you forward.**
 
-ResearchArchive is a unified, free academic paper search engine that aggregates arXiv, PubMed, CrossRef, and OpenAlex with semantic search, paper summarization, and discovery features. Think "Google for research papers with researcher-first UX."
+ResearchArchive is a unified, free, privacy-first academic search engine. It queries
+**arXiv, PubMed, CrossRef, and OpenAlex** in parallel, deduplicates the results, and presents
+them through a fast, beautiful, accessible interface — built for students, researchers, and
+anyone curious about peer-reviewed work.
 
-![ResearchArchive Homepage](https://github.com/user-attachments/assets/e926fbf7-6625-4ac2-aa0d-9c6f5c6a1b33)
+- 🔎 **One search across 260M+ papers** — not just arXiv, not just PubMed.
+- 📥 **Local library** — bookmark papers; no account, no cloud, no tracking.
+- 📑 **Instant citations** in BibTeX, APA, MLA, and RIS.
+- ⚡ **Autocomplete + trending** powered by OpenAlex.
+- 🌙 **Dark mode**, keyboard shortcuts (`⌘K`, `/`, `↵`, arrows), and a polished UI.
 
 ## Features
 
-- **Unified Search**: Search 250M+ papers across multiple databases simultaneously
-- **Multiple Sources**: arXiv, PubMed, CrossRef, and OpenAlex integration
-- **Citation Formatting**: Generate BibTeX, APA, and MLA citations with one click
-- **Save Papers**: Build your reading list using browser localStorage (no account needed)
-- **Advanced Filters**: Filter by source, access type, date range, citations, and discipline
-- **Dark Mode**: Beautiful dark theme for comfortable reading in any lighting
-- **Responsive Design**: Works beautifully on desktop, tablet, and mobile
-- **Keyboard Navigation**: Full keyboard support for power users
-- **Privacy First**: No tracking, no accounts required
-
-### Dark Mode Support
-
-Toggle between light and dark themes with a single click. Your preference is saved automatically.
-
-![Dark Mode](https://github.com/user-attachments/assets/886ca74b-8ae1-454e-90ca-a0fa518bccaa)
-
-### Mobile-Friendly Design
-
-Fully responsive design optimized for mobile devices with touch-friendly controls.
-
-![Mobile View](https://github.com/user-attachments/assets/1f9f9517-e3c7-4ee8-9cc0-3f2fb5ddaf81)
+- **Unified search** across four scholarly databases with cross-source deduplication by DOI and
+  normalized title.
+- **Smart relevance ranking** that blends upstream ordering with a freshness boost and a
+  logarithmic citation boost.
+- **Filters** for source, access type (open vs. restricted), date range, citation count, and
+  discipline — every filter is reflected in the URL so results are shareable.
+- **Paper detail pages** with abstracts, related papers, and "cited by" listings.
+- **Local library** with import/export (BibTeX, RIS, APA, MLA, JSON).
+- **Privacy by design** — no accounts, no analytics that follow you, your library stays in your
+  browser.
+- **Fully responsive** with dark mode and `prefers-reduced-motion` support.
 
 ## Tech Stack
 
-- **Framework**: Next.js 16+ (App Router)
-- **Language**: TypeScript (strict mode)
-- **Styling**: Tailwind CSS with CSS custom properties
-- **Validation**: Zod schemas
-- **HTTP Client**: Axios
-- **XML Parsing**: fast-xml-parser (for arXiv)
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript (strict)
+- **Styling**: Tailwind CSS 4 + CSS custom properties
+- **Validation**: Zod 4
+- **HTTP**: Axios with retry/backoff and a polite User-Agent
+- **XML**: fast-xml-parser (arXiv Atom & PubMed XML)
 - **Deployment**: Vercel-ready
 
 ## Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/research-archive.git
+git clone https://github.com/mnco25/research-archive.git
 cd research-archive
-
-# Install dependencies
 npm install
-
-# Start development server
+cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open <http://localhost:3000>.
 
-## API Documentation
+## Environment Variables
 
-### Search Endpoint
+| Variable | Required | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_APP_URL` | No | Used in metadata. Default `http://localhost:3000`. |
+| `RESEARCH_CONTACT_EMAIL` | Recommended | Used in the User-Agent for OpenAlex/CrossRef polite pools. |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | No | Fallback for the above. |
+| `PUBMED_API_KEY` | No | Lifts PubMed rate limit from 3 → 10 req/s. |
 
-**POST /api/search**
+## API Reference
+
+### `POST /api/search`
 
 ```json
 {
-  "query": "machine learning",
+  "query": "large language models",
   "page": 1,
   "limit": 20,
   "sources": ["arxiv", "pubmed", "crossref", "openalex"],
   "accessType": "open",
   "sort": "relevance",
-  "citationMin": 10
+  "citationMin": 10,
+  "discipline": "ai",
+  "dateRange": { "from": "2025-01-01", "to": "2026-12-31" }
 }
 ```
 
-**GET /api/search?q=machine+learning&limit=20&sort=relevance**
+Returns `{ papers, total, page, pages, searchTimeMs, sourcesQueried, errors? }`.
 
-### Paper Details
+### `GET /api/search?q=…`
 
-**GET /api/papers/{id}**
+Same as POST, with all filters as query parameters.
 
-Returns full paper details including related papers and citations.
+### `GET /api/suggest?q=…&limit=6`
 
-### Citation Generation
+Autocomplete (OpenAlex). Returns `{ suggestions: [{ id, title, hint, citations }] }`.
 
-**POST /api/cite**
+### `GET /api/trending?days=180&limit=8`
+
+Most-cited papers from the lookback window. Cached 30 minutes.
+
+### `GET /api/papers/{id}`
+
+Full paper detail including related and citing papers.
+
+### `POST /api/cite`
 
 ```json
-{
-  "paperId": "arxiv:2301.12345",
-  "format": "bibtex"
-}
+{ "paperId": "openalex:W2741809807", "format": "bibtex" }
 ```
 
-Supported formats: `bibtex`, `apa`, `mla`
+Formats: `bibtex`, `apa`, `mla`, `ris`.
 
-### Health Check
+### `GET /api/health`
 
-**GET /api/health**
-
-Returns status of all API sources.
+Live status of all four upstream APIs.
 
 ## Data Sources
 
 | Source | Coverage | Rate Limit | Notes |
-|--------|----------|------------|-------|
-| arXiv | 2.5M+ papers | 1 req/3s | Physics, Math, CS, more |
-| PubMed | 35M+ articles | 10 req/s | Biomedical, life sciences |
-| CrossRef | 140M+ works | 50 req/s | Multidisciplinary, DOI registry |
-| OpenAlex | 250M+ papers | Unlimited | Most comprehensive, citation networks |
+|---|---|---|---|
+| arXiv | 2.5M+ | 1 req / 3 s | Physics, math, CS, more |
+| PubMed | 38M+ | 10 req/s with key | Biomedical, life sciences |
+| CrossRef | 170M+ | 50 req/s polite pool | Multidisciplinary, DOI registry |
+| OpenAlex | 260M+ | Unlimited polite | Most comprehensive; powers trending + autocomplete |
 
 ## Project Structure
 
+See [`CLAUDE.md`](./CLAUDE.md) for a full developer guide.
+
 ```
-research-archive/
-├── app/                    # Next.js App Router pages
-│   ├── api/               # API routes
-│   ├── paper/[id]/        # Paper detail page
-│   ├── saved/             # Saved papers page
-│   └── search/            # Search results page
-├── components/            # React components
-├── lib/                   # Utilities and API clients
-│   ├── api/              # Source-specific API clients
-│   ├── cache.ts          # In-memory caching
-│   ├── citation-formatter.ts
-│   ├── search.ts         # Unified search logic
-│   ├── types.ts          # TypeScript types + Zod schemas
-│   └── utils.ts          # Helper functions
-└── data/                  # Static data (disciplines, config)
+app/
+├── api/{search,suggest,trending,papers,cite,health}/route.ts
+├── search/page.tsx
+├── paper/[id]/page.tsx
+├── saved/page.tsx
+├── layout.tsx
+└── page.tsx
+components/
+lib/{api,http,search,cache,citation-formatter,saved-papers,theme,types,utils}.ts
+data/{disciplines,sources-config}.json
 ```
 
-## Environment Variables
-
-Copy `.env.example` to `.env.local`:
+## Scripts
 
 ```bash
-cp .env.example .env.local
+npm run dev      # Dev server with HMR
+npm run build    # Production build
+npm run start    # Production server
+npm run lint     # ESLint
 ```
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| NEXT_PUBLIC_APP_URL | No | Application URL for metadata |
-| CLAUDE_API_KEY | No | For AI summaries (coming soon) |
-
-## API Rate Limits
-
-The application respects rate limits for each source:
-
-- **arXiv**: Built-in 3-second delay between requests
-- **PubMed**: 10 requests/second (generous)
-- **CrossRef**: 50 requests/second (very generous)
-- **OpenAlex**: Unlimited (fair use policy)
-
-Results are cached in memory to minimize API calls.
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Fork the repo and create your branch (`git checkout -b feat/amazing-feature`).
+2. Make your changes, then run `npm run lint && npm run build`.
+3. Open a pull request describing what changed and why.
 
 ## Roadmap
 
+- [x] Unified search & dedup
+- [x] Citations: BibTeX, APA, MLA, RIS
+- [x] Library import/export
 - [x] Dark mode
-- [ ] Full-text search integration
-- [ ] Author profiles and pages
-- [ ] Reading lists with tags
-- [ ] AI-powered paper summaries
-- [ ] Export to reference managers (Zotero, Mendeley)
+- [x] Discipline browsing
+- [x] Autocomplete + trending endpoints
+- [ ] Author profiles & follow lists
+- [ ] AI-powered abstract summaries
 - [ ] Browser extension
-
-## Limitations
-
-- Citation counts may vary between sources
-- Not all papers have abstracts available
-- PDF access depends on open access availability
-- Some papers may appear in multiple sources (deduplicated by DOI)
+- [ ] Personalized recommendations (still privacy-first)
 
 ## License
 
-MIT License - feel free to use this for your own research tools!
+MIT
 
 ## Acknowledgments
 
-Data provided by:
-- [arXiv](https://arxiv.org) - Cornell University
-- [PubMed](https://pubmed.ncbi.nlm.nih.gov) - National Library of Medicine
-- [CrossRef](https://www.crossref.org) - DOI Foundation
-- [OpenAlex](https://openalex.org) - OurResearch
+Data via [arXiv](https://arxiv.org), [PubMed](https://pubmed.ncbi.nlm.nih.gov),
+[CrossRef](https://www.crossref.org), and [OpenAlex](https://openalex.org). Thank you to the
+open-science community keeping research accessible.
 
 ---
 
-Built with love for researchers, by researchers.
+Built with care for everyone who reads research.

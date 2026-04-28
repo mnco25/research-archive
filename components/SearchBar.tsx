@@ -1,103 +1,98 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { debounce } from '@/lib/utils';
-import type { Paper } from '@/lib/types';
+import type { Suggestion } from '@/lib/types';
 
 interface SearchBarProps {
   initialQuery?: string;
   large?: boolean;
   onSearch?: (query: string) => void;
-  onLiveSearch?: (query: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  showShortcut?: boolean;
 }
 
 export default function SearchBar({
   initialQuery = '',
   large = false,
   onSearch,
-  onLiveSearch,
-  placeholder = 'Search papers, authors, topics...',
+  placeholder = 'Search papers, authors, or topics…',
   autoFocus = false,
+  showShortcut = true,
 }: SearchBarProps) {
   const [query, setQuery] = useState(initialQuery);
-  const [suggestions, setSuggestions] = useState<Paper[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isFocused, setIsFocused] = useState(false);
+  const [lastInitial, setLastInitial] = useState(initialQuery);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const requestIdRef = useRef(0);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const fetchSuggestionsDebounced = useCallback(
-    debounce(async (searchQuery: string) => {
-      if (searchQuery.length < 2) {
-        setSuggestions([]);
-        return;
-      }
-      setIsLoading(true);
-      try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}&limit=5`);
-        if (response.ok) {
-          const data = await response.json();
-          setSuggestions(data.papers || []);
+  if (initialQuery !== lastInitial) {
+    setLastInitial(initialQuery);
+    setQuery(initialQuery);
+  }
+
+  const fetchSuggestions = useMemo(
+    () =>
+      debounce(async (value: string) => {
+        const trimmed = value.trim();
+        if (trimmed.length < 2) {
+          setSuggestions([]);
+          setIsLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error('Failed to fetch suggestions:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 300),
+        const requestId = ++requestIdRef.current;
+        setIsLoading(true);
+        try {
+          const res = await fetch(`/api/suggest?q=${encodeURIComponent(trimmed)}&limit=6`);
+          if (!res.ok) throw new Error('failed');
+          const data: { suggestions: Suggestion[] } = await res.json();
+          if (requestId === requestIdRef.current) {
+            setSuggestions(data.suggestions || []);
+          }
+        } catch {
+          if (requestId === requestIdRef.current) setSuggestions([]);
+        } finally {
+          if (requestId === requestIdRef.current) setIsLoading(false);
+        }
+      }, 220),
     []
   );
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const liveSearchDebounced = useCallback(
-    debounce((searchQuery: string) => {
-      onLiveSearch?.(searchQuery);
-    }, 500),
-    [onLiveSearch]
-  );
+  useEffect(() => () => fetchSuggestions.cancel(), [fetchSuggestions]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setQuery(value);
     setSelectedIndex(-1);
-    fetchSuggestionsDebounced(value);
-    liveSearchDebounced(value);
     setShowSuggestions(true);
+    fetchSuggestions(value);
+  };
+
+  const submit = (q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    setShowSuggestions(false);
+    inputRef.current?.blur();
+    if (onSearch) onSearch(trimmed);
+    else router.push(`/search?q=${encodeURIComponent(trimmed)}`);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) {
-      setShowSuggestions(false);
-      if (onSearch) {
-        onSearch(query.trim());
-      } else {
-        router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-      }
-    }
+    submit(query);
   };
 
-  const handleSuggestionClick = (paper: Paper) => {
+  const handleSuggestionClick = (suggestion: Suggestion) => {
     setShowSuggestions(false);
-    setQuery('');
-    router.push(`/paper/${encodeURIComponent(paper.id)}`);
-  };
-
-  const highlightMatch = (text: string, q: string) => {
-    if (!q.trim()) return text;
-    const parts = text.split(new RegExp(`(${q})`, 'gi'));
-    return parts.map((part, i) => 
-      part.toLowerCase() === q.toLowerCase() 
-        ? <span key={i} className="text-[hsl(var(--accent))] font-extrabold">{part}</span> 
-        : part
-    );
+    router.push(`/paper/${encodeURIComponent(suggestion.id)}`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -118,52 +113,48 @@ export default function SearchBar({
   };
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const onClickOutside = (event: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
         setIsFocused(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
   }, []);
 
   useEffect(() => {
-    if (autoFocus && inputRef.current) inputRef.current.focus();
-
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+    if (autoFocus) inputRef.current?.focus();
+    const onGlobalKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         inputRef.current?.focus();
       }
-      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      const tag = (document.activeElement?.tagName || '').toLowerCase();
+      if (e.key === '/' && tag !== 'input' && tag !== 'textarea') {
         e.preventDefault();
         inputRef.current?.focus();
       }
     };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('keydown', onGlobalKey);
+    return () => window.removeEventListener('keydown', onGlobalKey);
   }, [autoFocus]);
 
   return (
     <div ref={wrapperRef} className="relative w-full">
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} role="search">
         <div
-          className={`
-            relative flex items-center bg-[var(--bg-elevated)] border rounded-[var(--radius-lg)]
-            transition-all duration-500 ease-out
-            ${isFocused
-              ? 'border-[hsl(var(--accent))] shadow-[0_0_0_4px_hsl(var(--accent)/0.15)] ring-1 ring-[hsl(var(--accent)/0.5)]'
-              : 'border-[var(--border-primary)] shadow-[var(--shadow-sm)] hover:border-[var(--text-tertiary)] hover:shadow-md'
-            }
-          `}
+          className={`relative flex items-center bg-[var(--bg-elevated)] border rounded-[var(--radius-lg)] transition-all duration-200 ${
+            isFocused
+              ? 'border-[hsl(var(--accent))] shadow-[var(--shadow-focus)]'
+              : 'border-[var(--border-primary)] hover:border-[var(--text-tertiary)]'
+          }`}
         >
-          {/* Icon with scale bounce on focus */}
-          <div className={`pl-5 transition-all duration-500 ease-out flex items-center justify-center ${isFocused ? 'text-[hsl(var(--accent))] scale-110 drop-shadow-[0_0_8px_hsl(var(--accent)/0.5)]' : 'text-[var(--text-tertiary)] scale-100'}`}>
+          <div className={`pl-4 flex items-center justify-center transition-colors ${isFocused ? 'text-[hsl(var(--accent))]' : 'text-[var(--text-tertiary)]'}`}>
             {isLoading ? (
               <div className="w-5 h-5 border-2 border-[hsl(var(--accent))] border-t-transparent rounded-full animate-spin" />
             ) : (
-              <svg width={large ? 22 : 18} height={large ? 22 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width={large ? 20 : 18} height={large ? 20 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
               </svg>
@@ -177,91 +168,94 @@ export default function SearchBar({
             onChange={handleChange}
             onFocus={() => {
               setIsFocused(true);
-              if (query.length >= 2) setShowSuggestions(true);
+              if (query.trim().length >= 2 && suggestions.length > 0) setShowSuggestions(true);
             }}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className={`
-              flex-1 bg-transparent border-none outline-none font-medium tracking-tight
-              text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)]
-              transition-all duration-300
-              ${large ? 'h-[60px] text-[17px] px-4' : 'h-[44px] text-[15px] px-3'}
-            `}
+            autoComplete="off"
+            spellCheck={false}
+            className={`flex-1 bg-transparent border-none outline-none font-medium text-[var(--text-primary)] placeholder:text-[var(--text-placeholder)] ${
+              large ? 'h-[58px] text-[16px] px-3' : 'h-[44px] text-[14px] px-3'
+            }`}
             aria-label="Search papers"
+            aria-autocomplete="list"
+            role="combobox"
+            aria-expanded={showSuggestions}
+            aria-controls="search-suggestions"
           />
 
           {query && (
             <button
               type="button"
-              onClick={() => { setQuery(''); setSuggestions([]); inputRef.current?.focus(); }}
+              onClick={() => {
+                setQuery('');
+                setSuggestions([]);
+                inputRef.current?.focus();
+              }}
               className="p-2 mr-1 rounded-full text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+              aria-label="Clear search"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
             </button>
           )}
 
-          {/* Keyboard shortcut indicator */}
-          <div className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-tertiary)] mr-4 select-none group-hover:border-[var(--text-tertiary)] transition-colors">
-             <span>⌘</span>
-             <span>K</span>
-          </div>
+          {showShortcut && !query && (
+            <kbd className="hidden md:flex items-center gap-1 px-1.5 py-1 mr-3 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)]/60 text-[10px] font-semibold text-[var(--text-tertiary)] select-none">
+              <span>⌘</span><span>K</span>
+            </kbd>
+          )}
         </div>
       </form>
 
-      {/* Suggestions dropdown - Clean & Scrollable */}
       {showSuggestions && (suggestions.length > 0 || isLoading) && (
-        <div className="absolute top-[calc(100%+0.5rem)] left-0 right-0 bg-[var(--bg-elevated)]/95 backdrop-blur-xl border border-[var(--border-primary)]/80 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-50 overflow-hidden animate-in filter drop-shadow-xl">
-          <div className="max-h-[380px] overflow-y-auto py-2">
-            {isLoading ? (
-              <div className="px-4 py-6 flex items-center justify-center gap-3 text-[var(--text-tertiary)]">
-                <div className="w-4 h-4 border-2 border-[hsl(var(--accent))] border-t-transparent rounded-full animate-spin" />
-                <span className="text-[13px] font-medium">Searching archive...</span>
-              </div>
-            ) : (
-              <>
-                <div className="px-4 py-2 border-b border-[var(--border-secondary)]/50 mb-1">
-                  <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">Suggestions</span>
-                </div>
-                <ul>
-                  {suggestions.map((paper, idx) => (
-                    <li
-                      key={paper.id}
-                      className={`
-                        px-4 py-3 mx-2 rounded-xl cursor-pointer transition-all duration-200 flex items-start gap-3
-                        ${idx === selectedIndex ? 'bg-[var(--bg-tertiary)] ring-1 ring-[hsl(var(--accent)/0.2)]' : 'hover:bg-[var(--bg-secondary)]/50'}
-                      `}
-                      onClick={() => handleSuggestionClick(paper)}
-                      onMouseEnter={() => setSelectedIndex(idx)}
-                    >
-                      <div className={`w-1 h-5 mt-0.5 rounded-full transition-all duration-300 ${idx === selectedIndex ? 'bg-[hsl(var(--accent))] opacity-100' : 'bg-transparent opacity-0'}`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-[var(--text-primary)] text-[14px] leading-snug line-clamp-1 mb-0.5">
-                          {highlightMatch(paper.title, query)}
-                        </div>
-                        <div className="text-[12px] text-[var(--text-tertiary)] font-bold flex items-center gap-1.5 uppercase tracking-tighter">
-                          <span className="truncate max-w-[150px] text-[var(--text-secondary)]">
-                            {paper.authors[0]?.name || 'Unknown'}
-                          </span>
-                          <span className="opacity-30">/</span>
-                          <span>{new Date(paper.date).getFullYear()}</span>
-                          <span className="opacity-30">/</span>
-                          <span className="text-[hsl(var(--accent))]">{paper.source}</span>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                  {/* Quick Search Action at bottom */}
-                  <li 
-                    className="mt-1 px-4 py-3 bg-[var(--bg-tertiary)]/30 border-t border-[var(--border-secondary)]/50 cursor-pointer hover:bg-[var(--bg-tertiary)]/60 transition-colors flex items-center justify-between"
-                    onClick={handleSubmit}
-                  >
-                    <span className="text-[13px] font-bold text-[var(--text-primary)]">Search for &ldquo;{query}&rdquo;</span>
-                    <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-tighter opacity-60">↵ Enter</span>
-                  </li>
-                </ul>
-              </>
-            )}
-          </div>
+        <div
+          id="search-suggestions"
+          className="absolute top-[calc(100%+8px)] left-0 right-0 bg-[var(--bg-elevated)] border border-[var(--border-primary)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] z-50 overflow-hidden"
+          role="listbox"
+        >
+          {isLoading && suggestions.length === 0 ? (
+            <div className="px-4 py-5 flex items-center justify-center gap-2 text-[var(--text-tertiary)]">
+              <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              <span className="text-[13px]">Searching…</span>
+            </div>
+          ) : (
+            <ul className="py-1.5 max-h-[420px] overflow-y-auto">
+              {suggestions.map((suggestion, idx) => (
+                <li
+                  key={suggestion.id}
+                  role="option"
+                  aria-selected={idx === selectedIndex}
+                  className={`px-3 py-2.5 mx-1.5 rounded-[var(--radius-md)] cursor-pointer transition-colors ${
+                    idx === selectedIndex ? 'bg-[var(--bg-tertiary)]' : 'hover:bg-[var(--bg-secondary)]'
+                  }`}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                >
+                  <div className="font-medium text-[var(--text-primary)] text-[13.5px] leading-snug line-clamp-2">
+                    {suggestion.title}
+                  </div>
+                  {suggestion.hint && (
+                    <div className="text-[11.5px] text-[var(--text-tertiary)] mt-0.5 line-clamp-1">
+                      {suggestion.hint}
+                    </div>
+                  )}
+                </li>
+              ))}
+              <li
+                className="mx-1.5 mt-1 px-3 py-2.5 rounded-[var(--radius-md)] flex items-center justify-between cursor-pointer hover:bg-[var(--bg-tertiary)] transition-colors border-t border-[var(--border-secondary)]/60"
+                onClick={() => submit(query)}
+                role="option"
+                aria-selected={false}
+              >
+                <span className="text-[13px] font-medium text-[var(--text-primary)]">
+                  Search for &ldquo;{query}&rdquo;
+                </span>
+                <span className="text-[10.5px] font-semibold text-[var(--text-tertiary)] tracking-wider">↵ ENTER</span>
+              </li>
+            </ul>
+          )}
         </div>
       )}
     </div>
